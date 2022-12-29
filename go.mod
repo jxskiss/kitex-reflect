@@ -5,13 +5,13 @@ go 1.18
 require (
 	github.com/cloudwego/kitex v0.4.4
 	github.com/cloudwego/thriftgo v0.2.4
-	github.com/jxskiss/kitex-reflect/kitex_gen v0.0.0-00010101000000-000000000000
+	github.com/jxskiss/kitex-reflect/kitex_gen v0.1.0
 	github.com/stretchr/testify v1.8.1
 )
 
 require (
-	github.com/apache/thrift v0.17.0 // indirect
-	github.com/bytedance/gopkg v0.0.0-20220531084716-665b4f21126f // indirect
+	github.com/apache/thrift v0.13.0 // indirect
+	github.com/bytedance/gopkg v0.0.0-20220817015305-b879a72dc90f // indirect
 	github.com/chenzhuoyu/iasm v0.0.0-20220818063314-28c361dae733 // indirect
 	github.com/choleraehyq/pid v0.0.15 // indirect
 	github.com/cloudwego/fastpb v0.0.3 // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/google/pprof v0.0.0-20220608213341-c488b8fa1db3 // indirect
 	github.com/jhump/protoreflect v1.8.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/oleiade/lane v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -38,7 +38,3 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/apache/thrift => github.com/apache/thrift v0.13.0
-
-replace github.com/jxskiss/kitex-reflect/kitex_gen => ./kitex_gen
