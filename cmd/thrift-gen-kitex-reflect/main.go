@@ -39,7 +39,7 @@ func main() {
 	})
 
 	gen := newPluginGenerator(request.AST)
-	serviceDesc, err := gen.genServiceDesc()
+	serviceDesc, err := gen.buildServiceDesc()
 	if err != nil {
 		println("Failed to generate service descriptor:", err.Error())
 		os.Exit(1)

@@ -13,8 +13,8 @@ import (
 
 func newPluginGenerator(ast *parser.Thrift) *pluginGenerator {
 	gen := &pluginGenerator{
-		ast:       ast,
-		typeIndex: make(map[string]int),
+		ast:         ast,
+		structIndex: make(map[string]int),
 	}
 	return gen
 }
@@ -23,8 +23,8 @@ type pluginGenerator struct {
 	ast  *parser.Thrift
 	desc *idl.ServiceDesc
 
-	typeList  []*idl.TypeDesc
-	typeIndex map[string]int
+	structList  []*idl.StructDesc
+	structIndex map[string]int
 }
 
 func (p *pluginGenerator) getPkgName() string {
@@ -44,19 +44,20 @@ func (p *pluginGenerator) getOutputFile(outputPath string) string {
 	return descFile
 }
 
-func (p *pluginGenerator) genServiceDesc() (string, error) {
+func (p *pluginGenerator) buildServiceDesc() (string, error) {
 	svc := p.ast.Services[0]
 	p.desc = &idl.ServiceDesc{
 		Name:      svc.Name,
 		Functions: nil,
 	}
 	for _, fn := range svc.Functions {
-		fnDesc, err := p.getFunctionDesc(p.ast, fn)
+		fnDesc, err := p.buildFunctionDesc(p.ast, fn)
 		if err != nil {
 			return "", fmt.Errorf("cannot get function descriptor: %w", err)
 		}
 		p.desc.Functions = append(p.desc.Functions, fnDesc)
 	}
+	p.desc.StructList = p.structList
 	jsonBuf, err := json.MarshalIndent(p.desc, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("cannot marshal service descriptor: %w", err)
@@ -65,34 +66,37 @@ func (p *pluginGenerator) genServiceDesc() (string, error) {
 	return str, nil
 }
 
-func (p *pluginGenerator) getFunctionDesc(tree *parser.Thrift, fn *parser.Function) (*idl.FunctionDesc, error) {
-	reqDesc, err := p.getReqTypeDesc(tree, fn.Arguments)
+func (p *pluginGenerator) buildFunctionDesc(tree *parser.Thrift, fn *parser.Function) (*idl.FunctionDesc, error) {
+	reqDesc, err := p.buildReqTypeDesc(tree, fn.Arguments)
 	if err != nil {
 		return nil, err
 	}
-	respDesc, err := p.getRespTypeDesc(tree, fn.FunctionType)
+	respDesc, err := p.buildRespTypeDesc(tree, fn.FunctionType)
 	if err != nil {
 		return nil, err
 	}
 	annotations := p.convAnnotations(fn.Annotations)
 	hasRequestBase := false
-	for _, reqField := range reqDesc.Struct.Fields[0].Type.Struct.Fields {
+	reqStructDesc := p.getStructDesc(reqDesc.Struct.Fields[0].Type)
+	for _, reqField := range reqStructDesc.Fields {
 		if reqField.Type.GetIsRequestBase() {
 			hasRequestBase = true
 		}
 	}
 	desc := &idl.FunctionDesc{
-		Name:           fn.Name,
-		Oneway:         fn.Oneway,
-		HasRequestBase: hasRequestBase,
+		Name:           &fn.Name,
+		Oneway:         nil,
+		HasRequestBase: nil,
 		Request:        reqDesc,
 		Response:       respDesc,
 		Annotations:    annotations,
 	}
+	setNonZeroValue(&desc.Oneway, fn.Oneway)
+	setNonZeroValue(&desc.HasRequestBase, hasRequestBase)
 	return desc, nil
 }
 
-func (p *pluginGenerator) getReqTypeDesc(tree *parser.Thrift, args []*parser.Field) (*idl.TypeDesc, error) {
+func (p *pluginGenerator) buildReqTypeDesc(tree *parser.Thrift, args []*parser.Field) (*idl.TypeDesc, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("unsupported arguments count: %d", len(args))
 	}
@@ -102,69 +106,62 @@ func (p *pluginGenerator) getReqTypeDesc(tree *parser.Thrift, args []*parser.Fie
 	}
 
 	reqDesc := &idl.TypeDesc{
-		Name: "",
-		Type: idl.Type_STRUCT,
+		Name: nil,
+		Type: idlTypeStruct,
 		Struct: &idl.StructDesc{
-			Name:        "",
+			Name:        nil,
 			Fields:      nil,
 			Annotations: nil,
 		},
 	}
-	argDesc, err := p.getStructDesc(tree, arg.Type.Name, 0)
+	structIdx, err := p.buildStructDesc(tree, arg.Type.Name, 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get request struct descriptor: %w", err)
 	}
 	fieldDesc := &idl.FieldDesc{
-		Name:          arg.Name,
-		Alias:         "",
-		ID:            arg.ID,
-		Required:      arg.Requiredness == parser.FieldType_Required,
-		Optional:      arg.Requiredness == parser.FieldType_Optional,
-		IsException:   false,
-		DefaultValue:  nil,
-		TypeDescIndex: nil,
+		Name:         &arg.Name,
+		Alias:        nil,
+		ID:           &arg.ID,
+		Required:     nil,
+		Optional:     nil,
+		IsException:  nil,
+		DefaultValue: nil,
 		Type: &idl.TypeDesc{
-			Name:   argDesc.Name,
-			Type:   idl.Type_STRUCT,
-			Struct: argDesc,
+			Name:      &arg.Type.Name,
+			Type:      idlTypeStruct,
+			StructIdx: int32p(structIdx),
 		},
 		Annotations: nil,
 	}
+	setNonZeroValue(&fieldDesc.Required, arg.Requiredness == parser.FieldType_Required)
+	setNonZeroValue(&fieldDesc.Optional, arg.Requiredness == parser.FieldType_Optional)
 	reqDesc.Struct.Fields = append(reqDesc.Struct.Fields, fieldDesc)
 	return reqDesc, nil
 }
 
-func (p *pluginGenerator) getRespTypeDesc(tree *parser.Thrift, typ *parser.Type) (*idl.TypeDesc, error) {
+func (p *pluginGenerator) buildRespTypeDesc(tree *parser.Thrift, typ *parser.Type) (*idl.TypeDesc, error) {
 	if typ.Category != parser.Category_Struct {
 		return nil, fmt.Errorf("unsupported response type: %v", typ.Category)
 	}
 
 	respDesc := &idl.TypeDesc{
-		Name: "",
-		Type: idl.Type_STRUCT,
+		Name: nil,
+		Type: idlTypeStruct,
 		Struct: &idl.StructDesc{
-			Name:        "",
+			Name:        nil,
 			Fields:      nil,
 			Annotations: nil,
 		},
 	}
-	argDesc, err := p.getStructDesc(tree, typ.Name, 0)
+	structIdx, err := p.buildStructDesc(tree, typ.Name, 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get response struct descriptor: %w", err)
 	}
 	fieldDesc := &idl.FieldDesc{
-		Name:          "",
-		Alias:         "",
-		ID:            0,
-		Required:      false,
-		Optional:      false,
-		IsException:   false,
-		DefaultValue:  nil,
-		TypeDescIndex: nil,
 		Type: &idl.TypeDesc{
-			Name:   typ.Name,
-			Type:   idl.Type_STRUCT,
-			Struct: argDesc,
+			Name:      &typ.Name,
+			Type:      idlTypeStruct,
+			StructIdx: int32p(structIdx),
 		},
 		Annotations: nil,
 	}
@@ -172,54 +169,75 @@ func (p *pluginGenerator) getRespTypeDesc(tree *parser.Thrift, typ *parser.Type)
 	return respDesc, nil
 }
 
-func (p *pluginGenerator) getStructDesc(tree *parser.Thrift, structName string, recurDepth int) (*idl.StructDesc, error) {
+func (p *pluginGenerator) buildStructDesc(tree *parser.Thrift, structName string, recurDepth int) (int, error) {
 	var structTyp *parser.StructLike
 	var found bool
 	typPkg, typName := splitType(structName)
 	if typPkg != "" {
 		ref, ok := tree.GetReference(typPkg)
 		if !ok {
-			return nil, fmt.Errorf("reference is missingf: %s", typPkg)
+			return -1, fmt.Errorf("reference is missingf: %s", typPkg)
 		}
 		tree = ref
 	}
+
+	idxKey := fmt.Sprintf("%s|%s|%s", tree.Filename, typPkg, typName)
+	structIdx, ok := p.structIndex[idxKey]
+	if ok {
+		return structIdx, nil
+	}
+
 	structTyp, found = findStructLike(tree, typName)
 	if !found {
-		return nil, fmt.Errorf("cannot find struct %v", structName)
+		return -1, fmt.Errorf("cannot find struct %v", structName)
 	}
 	annotations := p.convAnnotations(structTyp.Annotations)
 	desc := &idl.StructDesc{
-		Name:        typName,
+		Name:        &typName,
 		Fields:      nil,
 		Annotations: annotations,
 	}
 	for _, field := range structTyp.Fields {
-		fDesc, err := p.getFieldDesc(tree, field, recurDepth+1)
+		fDesc, err := p.buildFieldDesc(tree, field, recurDepth+1)
 		if err != nil {
-			return nil, fmt.Errorf("cannot get field descriptor: %w", err)
+			return -1, fmt.Errorf("cannot get field descriptor: %w", err)
 		}
 		desc.Fields = append(desc.Fields, fDesc)
 	}
-	return desc, nil
+
+	structIdx = len(p.structList)
+	p.structList = append(p.structList, desc)
+	p.structIndex[idxKey] = structIdx
+
+	return structIdx, nil
 }
 
-func (p *pluginGenerator) getFieldDesc(tree *parser.Thrift, field *parser.Field, recurDepth int) (*idl.FieldDesc, error) {
-	typDesc, err := p.getTypeDesc(tree, field.Type, recurDepth)
+func (p *pluginGenerator) getStructDesc(typeDesc *idl.TypeDesc) *idl.StructDesc {
+	if idx := typeDesc.StructIdx; idx != nil {
+		return p.structList[*idx]
+	}
+	return typeDesc.Struct
+}
+
+func (p *pluginGenerator) buildFieldDesc(tree *parser.Thrift, field *parser.Field, recurDepth int) (*idl.FieldDesc, error) {
+	typDesc, err := p.buildTypeDesc(tree, field.Type, recurDepth)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get descriptor for type %s: %w", field.Type.Name, err)
 	}
 	annotations := p.convAnnotations(field.Annotations)
 	fieldDesc := &idl.FieldDesc{
-		Name:         field.Name,
-		Alias:        "",
-		ID:           field.ID,
-		Required:     field.Requiredness == parser.FieldType_Required,
-		Optional:     field.Requiredness == parser.FieldType_Optional,
-		IsException:  false,
+		Name:         &field.Name,
+		Alias:        nil,
+		ID:           &field.ID,
+		Required:     nil,
+		Optional:     nil,
+		IsException:  nil,
 		DefaultValue: nil,
 		Type:         typDesc,
 		Annotations:  annotations,
 	}
+	setNonZeroValue(&fieldDesc.Required, field.Requiredness == parser.FieldType_Required)
+	setNonZeroValue(&fieldDesc.Optional, field.Requiredness == parser.FieldType_Optional)
 	if field.Default != nil {
 		val, err := p.parseDefaultValue(tree, field.Name, field.Type, field.Default)
 		if err != nil {
@@ -230,7 +248,7 @@ func (p *pluginGenerator) getFieldDesc(tree *parser.Thrift, field *parser.Field,
 	return fieldDesc, nil
 }
 
-func (p *pluginGenerator) getTypeDesc(tree *parser.Thrift, typ *parser.Type, recurDepth int) (*idl.TypeDesc, error) {
+func (p *pluginGenerator) buildTypeDesc(tree *parser.Thrift, typ *parser.Type, recurDepth int) (*idl.TypeDesc, error) {
 	if typ == nil {
 		return nil, nil
 	}
@@ -238,31 +256,37 @@ func (p *pluginGenerator) getTypeDesc(tree *parser.Thrift, typ *parser.Type, rec
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert type enum: %w", err)
 	}
-	keyDesc, err := p.getTypeDesc(tree, typ.KeyType, recurDepth+1)
+	keyDesc, err := p.buildTypeDesc(tree, typ.KeyType, recurDepth+1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get key type descriptor: %w", err)
 	}
-	elemDesc, err := p.getTypeDesc(tree, typ.ValueType, recurDepth+1)
+	elemDesc, err := p.buildTypeDesc(tree, typ.ValueType, recurDepth+1)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get elem type descriptor: %w", err)
 	}
 
-	var structDesc *idl.StructDesc
+	var structIdx = -1
 	var isRequestBase bool
 	if typ.Category == parser.Category_Struct && typ.Name != "" {
-		structDesc, err = p.getStructDesc(tree, typ.Name, recurDepth)
+		structIdx, err = p.buildStructDesc(tree, typ.Name, recurDepth)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get struct descriptor: %w", err)
 		}
 		isRequestBase = typ.Name == "base.Base" && recurDepth == 1
 	}
 	desc := &idl.TypeDesc{
-		Name:          typ.Name,
-		Type:          typEnum,
+		Name:          &typ.Name,
+		Type:          &typEnum,
 		Key:           keyDesc,
 		Elem:          elemDesc,
-		Struct:        structDesc,
+		StructIdx:     nil,
 		IsRequestBase: &isRequestBase,
+	}
+	if typ.Category == parser.Category_Enum {
+		desc.Name = &enumTypeName
+	}
+	if structIdx >= 0 {
+		desc.StructIdx = int32p(structIdx)
 	}
 	return desc, nil
 }
@@ -291,7 +315,7 @@ var typeEnumTable = [...]idl.Type{
 	parser.Category_Map:       idl.Type_MAP,
 	parser.Category_List:      idl.Type_LIST,
 	parser.Category_Set:       idl.Type_SET,
-	parser.Category_Enum:      idl.Type_I64,
+	parser.Category_Enum:      idl.Type_I32,
 	parser.Category_Struct:    idl.Type_STRUCT,
 	parser.Category_Union:     idl.Type_STRUCT,
 	parser.Category_Exception: idl.Type_STRUCT,

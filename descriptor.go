@@ -87,6 +87,8 @@ func BuildServiceDescriptor(ctx context.Context, resp *ReflectServiceResponse) (
 type descriptorBuilder struct {
 	resp *ReflectServiceResponse
 	desc *descriptor.ServiceDescriptor
+
+	idlDesc *idl.ServiceDesc
 }
 
 func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
@@ -98,6 +100,7 @@ func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
 	if tDesc == nil {
 		return nil, errors.New("service descriptor not available")
 	}
+	p.idlDesc = tDesc
 	p.desc.Name = tDesc.Name
 	p.desc.Functions = make(map[string]*descriptor.FunctionDescriptor, len(tDesc.Functions))
 	for _, tFuncDesc := range tDesc.Functions {
@@ -120,11 +123,11 @@ func (p *descriptorBuilder) convertFunctionDesc(tDesc *idl.FunctionDesc) (*descr
 		return nil, err
 	}
 	desc := &descriptor.FunctionDescriptor{
-		Name:           tDesc.Name,
-		Oneway:         tDesc.Oneway,
+		Name:           tDesc.GetName(),
+		Oneway:         tDesc.GetOneway(),
 		Request:        reqDesc,
 		Response:       rspDesc,
-		HasRequestBase: tDesc.HasRequestBase,
+		HasRequestBase: tDesc.GetHasRequestBase(),
 	}
 	return desc, nil
 }
@@ -141,16 +144,20 @@ func (p *descriptorBuilder) convertTypeDesc(tDesc *idl.TypeDesc) (*descriptor.Ty
 	if err != nil {
 		return nil, err
 	}
-	structDesc, err := p.convertStructDesc(tDesc.Struct)
+	idlStructDesc := tDesc.Struct
+	if idlStructDesc == nil && tDesc.StructIdx != nil && len(p.idlDesc.StructList) > int(*tDesc.StructIdx) {
+		idlStructDesc = p.idlDesc.StructList[*tDesc.StructIdx]
+	}
+	structDesc, err := p.convertStructDesc(idlStructDesc)
 	if err != nil {
 		return nil, err
 	}
-	typEnum, err := p.convertTypeEnum(tDesc.Type)
+	typEnum, err := p.convertTypeEnum(tDesc.GetType())
 	if err != nil {
 		return nil, err
 	}
 	desc := &descriptor.TypeDescriptor{
-		Name:          tDesc.Name,
+		Name:          tDesc.GetName(),
 		Type:          typEnum,
 		Key:           keyDesc,
 		Elem:          elemDesc,
@@ -165,14 +172,14 @@ func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descripto
 		return nil, nil
 	}
 	desc := &descriptor.StructDescriptor{
-		Name:           tDesc.Name,
+		Name:           tDesc.GetName(),
 		FieldsByID:     make(map[int32]*descriptor.FieldDescriptor, len(tDesc.Fields)),
 		FieldsByName:   make(map[string]*descriptor.FieldDescriptor, len(tDesc.Fields)),
 		RequiredFields: make(map[int32]*descriptor.FieldDescriptor),
 		DefaultFields:  make(map[string]*descriptor.FieldDescriptor),
 	}
 	for _, fDesc := range tDesc.Fields {
-		_f, err := p.convertFieldDesc(tDesc.Name, fDesc)
+		_f, err := p.convertFieldDesc(tDesc.GetName(), fDesc)
 		if err != nil {
 			return nil, err
 		}
@@ -194,13 +201,13 @@ func (p *descriptorBuilder) convertFieldDesc(structName string, tDesc *idl.Field
 		return nil, err
 	}
 	desc := &descriptor.FieldDescriptor{
-		Name:         tDesc.Name,
-		Alias:        tDesc.Alias,
-		ID:           tDesc.ID,
-		Required:     tDesc.Required,
-		Optional:     tDesc.Optional,
+		Name:         tDesc.GetName(),
+		Alias:        tDesc.GetAlias(),
+		ID:           tDesc.GetID(),
+		Required:     tDesc.GetRequired(),
+		Optional:     tDesc.GetOptional(),
 		DefaultValue: nil,
-		IsException:  tDesc.IsException,
+		IsException:  tDesc.GetIsException(),
 		Type:         typDesc,
 		HTTPMapping:  nil,
 		ValueMapping: nil,
@@ -273,7 +280,7 @@ func (p *descriptorBuilder) convertTypeEnum(tTyp idl.Type) (descriptor.Type, err
 func (p *descriptorBuilder) parseDefaultValue(field *idl.FieldDesc) (interface{}, error) {
 	var out interface{}
 	str := *field.DefaultValue
-	switch field.Type.Type {
+	switch *field.Type.Type {
 	case idl.Type_BOOL:
 		out = new(bool)
 	case idl.Type_DOUBLE:

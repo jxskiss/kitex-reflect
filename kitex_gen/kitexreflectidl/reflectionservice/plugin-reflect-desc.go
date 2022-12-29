@@ -20,7 +20,7 @@ var pluginReflectImpl = struct {
 	err         error
 	payload     []byte
 }{
-	genTime: "20221229212640",
+	genTime: "20221229230736",
 }
 
 func ServeReflectServiceRequest(ctx context.Context, req interface{}, resp interface{}) error {
@@ -77,98 +77,68 @@ func buildPluginReflectRespPayload() error {
   "Functions": [
     {
       "Name": "ReflectService",
-      "Oneway": false,
-      "HasRequestBase": false,
       "Request": {
-        "Name": "",
         "Type": 12,
         "Struct": {
-          "Name": "",
           "Fields": [
             {
               "Name": "req",
-              "Alias": "",
               "ID": 1,
-              "Required": false,
-              "Optional": false,
-              "IsException": false,
               "Type": {
                 "Name": "ReflectServiceRequest",
                 "Type": 12,
-                "Struct": {
-                  "Name": "ReflectServiceRequest",
-                  "Fields": [
-                    {
-                      "Name": "Payload",
-                      "Alias": "",
-                      "ID": 1,
-                      "Required": false,
-                      "Optional": false,
-                      "IsException": false,
-                      "Type": {
-                        "Name": "binary",
-                        "Type": 11,
-                        "IsRequestBase": false
-                      },
-                      "Annotations": []
-                    }
-                  ],
-                  "Annotations": []
-                }
-              },
-              "Annotations": null
+                "StructIdx": 0
+              }
             }
-          ],
-          "Annotations": null
+          ]
         }
       },
       "Response": {
-        "Name": "",
         "Type": 12,
         "Struct": {
-          "Name": "",
           "Fields": [
             {
-              "Name": "",
-              "Alias": "",
-              "ID": 0,
-              "Required": false,
-              "Optional": false,
-              "IsException": false,
               "Type": {
                 "Name": "ReflectServiceResponse",
                 "Type": 12,
-                "Struct": {
-                  "Name": "ReflectServiceResponse",
-                  "Fields": [
-                    {
-                      "Name": "Payload",
-                      "Alias": "",
-                      "ID": 1,
-                      "Required": false,
-                      "Optional": false,
-                      "IsException": false,
-                      "Type": {
-                        "Name": "binary",
-                        "Type": 11,
-                        "IsRequestBase": false
-                      },
-                      "Annotations": []
-                    }
-                  ],
-                  "Annotations": []
-                }
-              },
-              "Annotations": null
+                "StructIdx": 1
+              }
             }
-          ],
-          "Annotations": null
+          ]
         }
-      },
-      "Annotations": []
+      }
     }
   ],
-  "TypeDescList": null
+  "StructList": [
+    {
+      "Name": "ReflectServiceRequest",
+      "Fields": [
+        {
+          "Name": "Payload",
+          "ID": 1,
+          "Type": {
+            "Name": "binary",
+            "Type": 11,
+            "IsRequestBase": false
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ReflectServiceResponse",
+      "Fields": [
+        {
+          "Name": "Payload",
+          "ID": 1,
+          "Type": {
+            "Name": "binary",
+            "Type": 11,
+            "IsRequestBase": false
+          }
+        }
+      ]
+    }
+  ]
 }`
 	err := json.Unmarshal([]byte(svcDescJSON), payload.ServiceDesc)
 	if err != nil {

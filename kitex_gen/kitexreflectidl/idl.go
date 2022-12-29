@@ -375,16 +375,15 @@ func (p *Annotation) Field2DeepEqual(src []string) bool {
 }
 
 type FieldDesc struct {
-	Name          string        `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
-	Alias         string        `thrift:"Alias,2" frugal:"2,default,string" json:"Alias"`
-	ID            int32         `thrift:"ID,3" frugal:"3,default,i32" json:"ID"`
-	Required      bool          `thrift:"Required,4" frugal:"4,default,bool" json:"Required"`
-	Optional      bool          `thrift:"Optional,5" frugal:"5,default,bool" json:"Optional"`
-	IsException   bool          `thrift:"IsException,6" frugal:"6,default,bool" json:"IsException"`
-	DefaultValue  *string       `thrift:"DefaultValue,7,optional" frugal:"7,optional,string" json:"DefaultValue,omitempty"`
-	TypeDescIndex *int32        `thrift:"TypeDescIndex,8,optional" frugal:"8,optional,i32" json:"TypeDescIndex,omitempty"`
-	Type          *TypeDesc     `thrift:"Type,9,optional" frugal:"9,optional,TypeDesc" json:"Type,omitempty"`
-	Annotations   []*Annotation `thrift:"Annotations,10" frugal:"10,default,list<Annotation>" json:"Annotations"`
+	Name         *string       `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
+	Alias        *string       `thrift:"Alias,2,optional" frugal:"2,optional,string" json:"Alias,omitempty"`
+	ID           *int32        `thrift:"ID,3,optional" frugal:"3,optional,i32" json:"ID,omitempty"`
+	Required     *bool         `thrift:"Required,4,optional" frugal:"4,optional,bool" json:"Required,omitempty"`
+	Optional     *bool         `thrift:"Optional,5,optional" frugal:"5,optional,bool" json:"Optional,omitempty"`
+	IsException  *bool         `thrift:"IsException,6,optional" frugal:"6,optional,bool" json:"IsException,omitempty"`
+	DefaultValue *string       `thrift:"DefaultValue,7,optional" frugal:"7,optional,string" json:"DefaultValue,omitempty"`
+	Type         *TypeDesc     `thrift:"Type,8,optional" frugal:"8,optional,TypeDesc" json:"Type,omitempty"`
+	Annotations  []*Annotation `thrift:"Annotations,9,optional" frugal:"9,optional,list<Annotation>" json:"Annotations,omitempty"`
 }
 
 func NewFieldDesc() *FieldDesc {
@@ -395,28 +394,58 @@ func (p *FieldDesc) InitDefault() {
 	*p = FieldDesc{}
 }
 
+var FieldDesc_Name_DEFAULT string
+
 func (p *FieldDesc) GetName() (v string) {
-	return p.Name
+	if !p.IsSetName() {
+		return FieldDesc_Name_DEFAULT
+	}
+	return *p.Name
 }
+
+var FieldDesc_Alias_DEFAULT string
 
 func (p *FieldDesc) GetAlias() (v string) {
-	return p.Alias
+	if !p.IsSetAlias() {
+		return FieldDesc_Alias_DEFAULT
+	}
+	return *p.Alias
 }
+
+var FieldDesc_ID_DEFAULT int32
 
 func (p *FieldDesc) GetID() (v int32) {
-	return p.ID
+	if !p.IsSetID() {
+		return FieldDesc_ID_DEFAULT
+	}
+	return *p.ID
 }
+
+var FieldDesc_Required_DEFAULT bool
 
 func (p *FieldDesc) GetRequired() (v bool) {
-	return p.Required
+	if !p.IsSetRequired() {
+		return FieldDesc_Required_DEFAULT
+	}
+	return *p.Required
 }
+
+var FieldDesc_Optional_DEFAULT bool
 
 func (p *FieldDesc) GetOptional() (v bool) {
-	return p.Optional
+	if !p.IsSetOptional() {
+		return FieldDesc_Optional_DEFAULT
+	}
+	return *p.Optional
 }
 
+var FieldDesc_IsException_DEFAULT bool
+
 func (p *FieldDesc) GetIsException() (v bool) {
-	return p.IsException
+	if !p.IsSetIsException() {
+		return FieldDesc_IsException_DEFAULT
+	}
+	return *p.IsException
 }
 
 var FieldDesc_DefaultValue_DEFAULT string
@@ -428,15 +457,6 @@ func (p *FieldDesc) GetDefaultValue() (v string) {
 	return *p.DefaultValue
 }
 
-var FieldDesc_TypeDescIndex_DEFAULT int32
-
-func (p *FieldDesc) GetTypeDescIndex() (v int32) {
-	if !p.IsSetTypeDescIndex() {
-		return FieldDesc_TypeDescIndex_DEFAULT
-	}
-	return *p.TypeDescIndex
-}
-
 var FieldDesc_Type_DEFAULT *TypeDesc
 
 func (p *FieldDesc) GetType() (v *TypeDesc) {
@@ -446,32 +466,34 @@ func (p *FieldDesc) GetType() (v *TypeDesc) {
 	return p.Type
 }
 
+var FieldDesc_Annotations_DEFAULT []*Annotation
+
 func (p *FieldDesc) GetAnnotations() (v []*Annotation) {
+	if !p.IsSetAnnotations() {
+		return FieldDesc_Annotations_DEFAULT
+	}
 	return p.Annotations
 }
-func (p *FieldDesc) SetName(val string) {
+func (p *FieldDesc) SetName(val *string) {
 	p.Name = val
 }
-func (p *FieldDesc) SetAlias(val string) {
+func (p *FieldDesc) SetAlias(val *string) {
 	p.Alias = val
 }
-func (p *FieldDesc) SetID(val int32) {
+func (p *FieldDesc) SetID(val *int32) {
 	p.ID = val
 }
-func (p *FieldDesc) SetRequired(val bool) {
+func (p *FieldDesc) SetRequired(val *bool) {
 	p.Required = val
 }
-func (p *FieldDesc) SetOptional(val bool) {
+func (p *FieldDesc) SetOptional(val *bool) {
 	p.Optional = val
 }
-func (p *FieldDesc) SetIsException(val bool) {
+func (p *FieldDesc) SetIsException(val *bool) {
 	p.IsException = val
 }
 func (p *FieldDesc) SetDefaultValue(val *string) {
 	p.DefaultValue = val
-}
-func (p *FieldDesc) SetTypeDescIndex(val *int32) {
-	p.TypeDescIndex = val
 }
 func (p *FieldDesc) SetType(val *TypeDesc) {
 	p.Type = val
@@ -481,28 +503,51 @@ func (p *FieldDesc) SetAnnotations(val []*Annotation) {
 }
 
 var fieldIDToName_FieldDesc = map[int16]string{
-	1:  "Name",
-	2:  "Alias",
-	3:  "ID",
-	4:  "Required",
-	5:  "Optional",
-	6:  "IsException",
-	7:  "DefaultValue",
-	8:  "TypeDescIndex",
-	9:  "Type",
-	10: "Annotations",
+	1: "Name",
+	2: "Alias",
+	3: "ID",
+	4: "Required",
+	5: "Optional",
+	6: "IsException",
+	7: "DefaultValue",
+	8: "Type",
+	9: "Annotations",
+}
+
+func (p *FieldDesc) IsSetName() bool {
+	return p.Name != nil
+}
+
+func (p *FieldDesc) IsSetAlias() bool {
+	return p.Alias != nil
+}
+
+func (p *FieldDesc) IsSetID() bool {
+	return p.ID != nil
+}
+
+func (p *FieldDesc) IsSetRequired() bool {
+	return p.Required != nil
+}
+
+func (p *FieldDesc) IsSetOptional() bool {
+	return p.Optional != nil
+}
+
+func (p *FieldDesc) IsSetIsException() bool {
+	return p.IsException != nil
 }
 
 func (p *FieldDesc) IsSetDefaultValue() bool {
 	return p.DefaultValue != nil
 }
 
-func (p *FieldDesc) IsSetTypeDescIndex() bool {
-	return p.TypeDescIndex != nil
-}
-
 func (p *FieldDesc) IsSetType() bool {
 	return p.Type != nil
+}
+
+func (p *FieldDesc) IsSetAnnotations() bool {
+	return p.Annotations != nil
 }
 
 func (p *FieldDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -595,7 +640,7 @@ func (p *FieldDesc) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 8:
-			if fieldTypeId == thrift.I32 {
+			if fieldTypeId == thrift.STRUCT {
 				if err = p.ReadField8(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -605,18 +650,8 @@ func (p *FieldDesc) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 9:
-			if fieldTypeId == thrift.STRUCT {
-				if err = p.ReadField9(iprot); err != nil {
-					goto ReadFieldError
-				}
-			} else {
-				if err = iprot.Skip(fieldTypeId); err != nil {
-					goto SkipFieldError
-				}
-			}
-		case 10:
 			if fieldTypeId == thrift.LIST {
-				if err = p.ReadField10(iprot); err != nil {
+				if err = p.ReadField9(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -658,7 +693,7 @@ func (p *FieldDesc) ReadField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.Name = v
+		p.Name = &v
 	}
 	return nil
 }
@@ -667,7 +702,7 @@ func (p *FieldDesc) ReadField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.Alias = v
+		p.Alias = &v
 	}
 	return nil
 }
@@ -676,7 +711,7 @@ func (p *FieldDesc) ReadField3(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
 		return err
 	} else {
-		p.ID = v
+		p.ID = &v
 	}
 	return nil
 }
@@ -685,7 +720,7 @@ func (p *FieldDesc) ReadField4(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
-		p.Required = v
+		p.Required = &v
 	}
 	return nil
 }
@@ -694,7 +729,7 @@ func (p *FieldDesc) ReadField5(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
-		p.Optional = v
+		p.Optional = &v
 	}
 	return nil
 }
@@ -703,7 +738,7 @@ func (p *FieldDesc) ReadField6(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
-		p.IsException = v
+		p.IsException = &v
 	}
 	return nil
 }
@@ -718,15 +753,6 @@ func (p *FieldDesc) ReadField7(iprot thrift.TProtocol) error {
 }
 
 func (p *FieldDesc) ReadField8(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI32(); err != nil {
-		return err
-	} else {
-		p.TypeDescIndex = &v
-	}
-	return nil
-}
-
-func (p *FieldDesc) ReadField9(iprot thrift.TProtocol) error {
 	p.Type = NewTypeDesc()
 	if err := p.Type.Read(iprot); err != nil {
 		return err
@@ -734,7 +760,7 @@ func (p *FieldDesc) ReadField9(iprot thrift.TProtocol) error {
 	return nil
 }
 
-func (p *FieldDesc) ReadField10(iprot thrift.TProtocol) error {
+func (p *FieldDesc) ReadField9(iprot thrift.TProtocol) error {
 	_, size, err := iprot.ReadListBegin()
 	if err != nil {
 		return err
@@ -796,10 +822,6 @@ func (p *FieldDesc) Write(oprot thrift.TProtocol) (err error) {
 			fieldId = 9
 			goto WriteFieldError
 		}
-		if err = p.writeField10(oprot); err != nil {
-			fieldId = 10
-			goto WriteFieldError
-		}
 
 	}
 	if err = oprot.WriteFieldStop(); err != nil {
@@ -820,14 +842,16 @@ WriteStructEndError:
 }
 
 func (p *FieldDesc) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteString(p.Name); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetName() {
+		if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.Name); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -837,14 +861,16 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Alias", thrift.STRING, 2); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteString(p.Alias); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetAlias() {
+		if err = oprot.WriteFieldBegin("Alias", thrift.STRING, 2); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.Alias); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -854,14 +880,16 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField3(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("ID", thrift.I32, 3); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteI32(p.ID); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetID() {
+		if err = oprot.WriteFieldBegin("ID", thrift.I32, 3); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteI32(*p.ID); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -871,14 +899,16 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField4(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Required", thrift.BOOL, 4); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteBool(p.Required); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetRequired() {
+		if err = oprot.WriteFieldBegin("Required", thrift.BOOL, 4); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.Required); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -888,14 +918,16 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField5(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Optional", thrift.BOOL, 5); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteBool(p.Optional); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetOptional() {
+		if err = oprot.WriteFieldBegin("Optional", thrift.BOOL, 5); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.Optional); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -905,14 +937,16 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField6(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("IsException", thrift.BOOL, 6); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteBool(p.IsException); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetIsException() {
+		if err = oprot.WriteFieldBegin("IsException", thrift.BOOL, 6); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.IsException); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -941,11 +975,11 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField8(oprot thrift.TProtocol) (err error) {
-	if p.IsSetTypeDescIndex() {
-		if err = oprot.WriteFieldBegin("TypeDescIndex", thrift.I32, 8); err != nil {
+	if p.IsSetType() {
+		if err = oprot.WriteFieldBegin("Type", thrift.STRUCT, 8); err != nil {
 			goto WriteFieldBeginError
 		}
-		if err := oprot.WriteI32(*p.TypeDescIndex); err != nil {
+		if err := p.Type.Write(oprot); err != nil {
 			return err
 		}
 		if err = oprot.WriteFieldEnd(); err != nil {
@@ -960,11 +994,19 @@ WriteFieldEndError:
 }
 
 func (p *FieldDesc) writeField9(oprot thrift.TProtocol) (err error) {
-	if p.IsSetType() {
-		if err = oprot.WriteFieldBegin("Type", thrift.STRUCT, 9); err != nil {
+	if p.IsSetAnnotations() {
+		if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 9); err != nil {
 			goto WriteFieldBeginError
 		}
-		if err := p.Type.Write(oprot); err != nil {
+		if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
+			return err
+		}
+		for _, v := range p.Annotations {
+			if err := v.Write(oprot); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(); err != nil {
 			return err
 		}
 		if err = oprot.WriteFieldEnd(); err != nil {
@@ -976,31 +1018,6 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 9 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 9 end error: ", p), err)
-}
-
-func (p *FieldDesc) writeField10(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 10); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
-		return err
-	}
-	for _, v := range p.Annotations {
-		if err := v.Write(oprot); err != nil {
-			return err
-		}
-	}
-	if err := oprot.WriteListEnd(); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
-	}
-	return nil
-WriteFieldBeginError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 10 begin error: ", p), err)
-WriteFieldEndError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 10 end error: ", p), err)
 }
 
 func (p *FieldDesc) String() string {
@@ -1037,56 +1054,83 @@ func (p *FieldDesc) DeepEqual(ano *FieldDesc) bool {
 	if !p.Field7DeepEqual(ano.DefaultValue) {
 		return false
 	}
-	if !p.Field8DeepEqual(ano.TypeDescIndex) {
+	if !p.Field8DeepEqual(ano.Type) {
 		return false
 	}
-	if !p.Field9DeepEqual(ano.Type) {
-		return false
-	}
-	if !p.Field10DeepEqual(ano.Annotations) {
+	if !p.Field9DeepEqual(ano.Annotations) {
 		return false
 	}
 	return true
 }
 
-func (p *FieldDesc) Field1DeepEqual(src string) bool {
+func (p *FieldDesc) Field1DeepEqual(src *string) bool {
 
-	if strings.Compare(p.Name, src) != 0 {
+	if p.Name == src {
+		return true
+	} else if p.Name == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.Name, *src) != 0 {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field2DeepEqual(src string) bool {
+func (p *FieldDesc) Field2DeepEqual(src *string) bool {
 
-	if strings.Compare(p.Alias, src) != 0 {
+	if p.Alias == src {
+		return true
+	} else if p.Alias == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.Alias, *src) != 0 {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field3DeepEqual(src int32) bool {
+func (p *FieldDesc) Field3DeepEqual(src *int32) bool {
 
-	if p.ID != src {
+	if p.ID == src {
+		return true
+	} else if p.ID == nil || src == nil {
+		return false
+	}
+	if *p.ID != *src {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field4DeepEqual(src bool) bool {
+func (p *FieldDesc) Field4DeepEqual(src *bool) bool {
 
-	if p.Required != src {
+	if p.Required == src {
+		return true
+	} else if p.Required == nil || src == nil {
+		return false
+	}
+	if *p.Required != *src {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field5DeepEqual(src bool) bool {
+func (p *FieldDesc) Field5DeepEqual(src *bool) bool {
 
-	if p.Optional != src {
+	if p.Optional == src {
+		return true
+	} else if p.Optional == nil || src == nil {
+		return false
+	}
+	if *p.Optional != *src {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field6DeepEqual(src bool) bool {
+func (p *FieldDesc) Field6DeepEqual(src *bool) bool {
 
-	if p.IsException != src {
+	if p.IsException == src {
+		return true
+	} else if p.IsException == nil || src == nil {
+		return false
+	}
+	if *p.IsException != *src {
 		return false
 	}
 	return true
@@ -1103,26 +1147,14 @@ func (p *FieldDesc) Field7DeepEqual(src *string) bool {
 	}
 	return true
 }
-func (p *FieldDesc) Field8DeepEqual(src *int32) bool {
-
-	if p.TypeDescIndex == src {
-		return true
-	} else if p.TypeDescIndex == nil || src == nil {
-		return false
-	}
-	if *p.TypeDescIndex != *src {
-		return false
-	}
-	return true
-}
-func (p *FieldDesc) Field9DeepEqual(src *TypeDesc) bool {
+func (p *FieldDesc) Field8DeepEqual(src *TypeDesc) bool {
 
 	if !p.Type.DeepEqual(src) {
 		return false
 	}
 	return true
 }
-func (p *FieldDesc) Field10DeepEqual(src []*Annotation) bool {
+func (p *FieldDesc) Field9DeepEqual(src []*Annotation) bool {
 
 	if len(p.Annotations) != len(src) {
 		return false
@@ -1137,12 +1169,13 @@ func (p *FieldDesc) Field10DeepEqual(src []*Annotation) bool {
 }
 
 type TypeDesc struct {
-	Name          string      `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
-	Type          Type        `thrift:"Type,2" frugal:"2,default,Type" json:"Type"`
+	Name          *string     `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
+	Type          *Type       `thrift:"Type,2,optional" frugal:"2,optional,Type" json:"Type,omitempty"`
 	Key           *TypeDesc   `thrift:"Key,3,optional" frugal:"3,optional,TypeDesc" json:"Key,omitempty"`
 	Elem          *TypeDesc   `thrift:"Elem,4,optional" frugal:"4,optional,TypeDesc" json:"Elem,omitempty"`
 	Struct        *StructDesc `thrift:"Struct,5,optional" frugal:"5,optional,StructDesc" json:"Struct,omitempty"`
-	IsRequestBase *bool       `thrift:"IsRequestBase,6,optional" frugal:"6,optional,bool" json:"IsRequestBase,omitempty"`
+	StructIdx     *int32      `thrift:"StructIdx,6,optional" frugal:"6,optional,i32" json:"StructIdx,omitempty"`
+	IsRequestBase *bool       `thrift:"IsRequestBase,7,optional" frugal:"7,optional,bool" json:"IsRequestBase,omitempty"`
 }
 
 func NewTypeDesc() *TypeDesc {
@@ -1153,12 +1186,22 @@ func (p *TypeDesc) InitDefault() {
 	*p = TypeDesc{}
 }
 
+var TypeDesc_Name_DEFAULT string
+
 func (p *TypeDesc) GetName() (v string) {
-	return p.Name
+	if !p.IsSetName() {
+		return TypeDesc_Name_DEFAULT
+	}
+	return *p.Name
 }
 
+var TypeDesc_Type_DEFAULT Type
+
 func (p *TypeDesc) GetType() (v Type) {
-	return p.Type
+	if !p.IsSetType() {
+		return TypeDesc_Type_DEFAULT
+	}
+	return *p.Type
 }
 
 var TypeDesc_Key_DEFAULT *TypeDesc
@@ -1188,6 +1231,15 @@ func (p *TypeDesc) GetStruct() (v *StructDesc) {
 	return p.Struct
 }
 
+var TypeDesc_StructIdx_DEFAULT int32
+
+func (p *TypeDesc) GetStructIdx() (v int32) {
+	if !p.IsSetStructIdx() {
+		return TypeDesc_StructIdx_DEFAULT
+	}
+	return *p.StructIdx
+}
+
 var TypeDesc_IsRequestBase_DEFAULT bool
 
 func (p *TypeDesc) GetIsRequestBase() (v bool) {
@@ -1196,10 +1248,10 @@ func (p *TypeDesc) GetIsRequestBase() (v bool) {
 	}
 	return *p.IsRequestBase
 }
-func (p *TypeDesc) SetName(val string) {
+func (p *TypeDesc) SetName(val *string) {
 	p.Name = val
 }
-func (p *TypeDesc) SetType(val Type) {
+func (p *TypeDesc) SetType(val *Type) {
 	p.Type = val
 }
 func (p *TypeDesc) SetKey(val *TypeDesc) {
@@ -1211,6 +1263,9 @@ func (p *TypeDesc) SetElem(val *TypeDesc) {
 func (p *TypeDesc) SetStruct(val *StructDesc) {
 	p.Struct = val
 }
+func (p *TypeDesc) SetStructIdx(val *int32) {
+	p.StructIdx = val
+}
 func (p *TypeDesc) SetIsRequestBase(val *bool) {
 	p.IsRequestBase = val
 }
@@ -1221,7 +1276,16 @@ var fieldIDToName_TypeDesc = map[int16]string{
 	3: "Key",
 	4: "Elem",
 	5: "Struct",
-	6: "IsRequestBase",
+	6: "StructIdx",
+	7: "IsRequestBase",
+}
+
+func (p *TypeDesc) IsSetName() bool {
+	return p.Name != nil
+}
+
+func (p *TypeDesc) IsSetType() bool {
+	return p.Type != nil
 }
 
 func (p *TypeDesc) IsSetKey() bool {
@@ -1234,6 +1298,10 @@ func (p *TypeDesc) IsSetElem() bool {
 
 func (p *TypeDesc) IsSetStruct() bool {
 	return p.Struct != nil
+}
+
+func (p *TypeDesc) IsSetStructIdx() bool {
+	return p.StructIdx != nil
 }
 
 func (p *TypeDesc) IsSetIsRequestBase() bool {
@@ -1310,8 +1378,18 @@ func (p *TypeDesc) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 6:
-			if fieldTypeId == thrift.BOOL {
+			if fieldTypeId == thrift.I32 {
 				if err = p.ReadField6(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 7:
+			if fieldTypeId == thrift.BOOL {
+				if err = p.ReadField7(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -1353,7 +1431,7 @@ func (p *TypeDesc) ReadField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.Name = v
+		p.Name = &v
 	}
 	return nil
 }
@@ -1362,7 +1440,8 @@ func (p *TypeDesc) ReadField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
 		return err
 	} else {
-		p.Type = Type(v)
+		tmp := Type(v)
+		p.Type = &tmp
 	}
 	return nil
 }
@@ -1392,6 +1471,15 @@ func (p *TypeDesc) ReadField5(iprot thrift.TProtocol) error {
 }
 
 func (p *TypeDesc) ReadField6(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI32(); err != nil {
+		return err
+	} else {
+		p.StructIdx = &v
+	}
+	return nil
+}
+
+func (p *TypeDesc) ReadField7(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
@@ -1430,6 +1518,10 @@ func (p *TypeDesc) Write(oprot thrift.TProtocol) (err error) {
 			fieldId = 6
 			goto WriteFieldError
 		}
+		if err = p.writeField7(oprot); err != nil {
+			fieldId = 7
+			goto WriteFieldError
+		}
 
 	}
 	if err = oprot.WriteFieldStop(); err != nil {
@@ -1450,14 +1542,16 @@ WriteStructEndError:
 }
 
 func (p *TypeDesc) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteString(p.Name); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetName() {
+		if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.Name); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -1467,14 +1561,16 @@ WriteFieldEndError:
 }
 
 func (p *TypeDesc) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Type", thrift.I32, 2); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteI32(int32(p.Type)); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetType() {
+		if err = oprot.WriteFieldBegin("Type", thrift.I32, 2); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteI32(int32(*p.Type)); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -1541,11 +1637,11 @@ WriteFieldEndError:
 }
 
 func (p *TypeDesc) writeField6(oprot thrift.TProtocol) (err error) {
-	if p.IsSetIsRequestBase() {
-		if err = oprot.WriteFieldBegin("IsRequestBase", thrift.BOOL, 6); err != nil {
+	if p.IsSetStructIdx() {
+		if err = oprot.WriteFieldBegin("StructIdx", thrift.I32, 6); err != nil {
 			goto WriteFieldBeginError
 		}
-		if err := oprot.WriteBool(*p.IsRequestBase); err != nil {
+		if err := oprot.WriteI32(*p.StructIdx); err != nil {
 			return err
 		}
 		if err = oprot.WriteFieldEnd(); err != nil {
@@ -1557,6 +1653,25 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 6 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 6 end error: ", p), err)
+}
+
+func (p *TypeDesc) writeField7(oprot thrift.TProtocol) (err error) {
+	if p.IsSetIsRequestBase() {
+		if err = oprot.WriteFieldBegin("IsRequestBase", thrift.BOOL, 7); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.IsRequestBase); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 7 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 7 end error: ", p), err)
 }
 
 func (p *TypeDesc) String() string {
@@ -1587,22 +1702,35 @@ func (p *TypeDesc) DeepEqual(ano *TypeDesc) bool {
 	if !p.Field5DeepEqual(ano.Struct) {
 		return false
 	}
-	if !p.Field6DeepEqual(ano.IsRequestBase) {
+	if !p.Field6DeepEqual(ano.StructIdx) {
+		return false
+	}
+	if !p.Field7DeepEqual(ano.IsRequestBase) {
 		return false
 	}
 	return true
 }
 
-func (p *TypeDesc) Field1DeepEqual(src string) bool {
+func (p *TypeDesc) Field1DeepEqual(src *string) bool {
 
-	if strings.Compare(p.Name, src) != 0 {
+	if p.Name == src {
+		return true
+	} else if p.Name == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.Name, *src) != 0 {
 		return false
 	}
 	return true
 }
-func (p *TypeDesc) Field2DeepEqual(src Type) bool {
+func (p *TypeDesc) Field2DeepEqual(src *Type) bool {
 
-	if p.Type != src {
+	if p.Type == src {
+		return true
+	} else if p.Type == nil || src == nil {
+		return false
+	}
+	if *p.Type != *src {
 		return false
 	}
 	return true
@@ -1628,7 +1756,19 @@ func (p *TypeDesc) Field5DeepEqual(src *StructDesc) bool {
 	}
 	return true
 }
-func (p *TypeDesc) Field6DeepEqual(src *bool) bool {
+func (p *TypeDesc) Field6DeepEqual(src *int32) bool {
+
+	if p.StructIdx == src {
+		return true
+	} else if p.StructIdx == nil || src == nil {
+		return false
+	}
+	if *p.StructIdx != *src {
+		return false
+	}
+	return true
+}
+func (p *TypeDesc) Field7DeepEqual(src *bool) bool {
 
 	if p.IsRequestBase == src {
 		return true
@@ -1642,9 +1782,9 @@ func (p *TypeDesc) Field6DeepEqual(src *bool) bool {
 }
 
 type StructDesc struct {
-	Name        string        `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
-	Fields      []*FieldDesc  `thrift:"Fields,2" frugal:"2,default,list<FieldDesc>" json:"Fields"`
-	Annotations []*Annotation `thrift:"Annotations,3" frugal:"3,default,list<Annotation>" json:"Annotations"`
+	Name        *string       `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
+	Fields      []*FieldDesc  `thrift:"Fields,2,optional" frugal:"2,optional,list<FieldDesc>" json:"Fields,omitempty"`
+	Annotations []*Annotation `thrift:"Annotations,3,optional" frugal:"3,optional,list<Annotation>" json:"Annotations,omitempty"`
 }
 
 func NewStructDesc() *StructDesc {
@@ -1655,18 +1795,33 @@ func (p *StructDesc) InitDefault() {
 	*p = StructDesc{}
 }
 
+var StructDesc_Name_DEFAULT string
+
 func (p *StructDesc) GetName() (v string) {
-	return p.Name
+	if !p.IsSetName() {
+		return StructDesc_Name_DEFAULT
+	}
+	return *p.Name
 }
 
+var StructDesc_Fields_DEFAULT []*FieldDesc
+
 func (p *StructDesc) GetFields() (v []*FieldDesc) {
+	if !p.IsSetFields() {
+		return StructDesc_Fields_DEFAULT
+	}
 	return p.Fields
 }
 
+var StructDesc_Annotations_DEFAULT []*Annotation
+
 func (p *StructDesc) GetAnnotations() (v []*Annotation) {
+	if !p.IsSetAnnotations() {
+		return StructDesc_Annotations_DEFAULT
+	}
 	return p.Annotations
 }
-func (p *StructDesc) SetName(val string) {
+func (p *StructDesc) SetName(val *string) {
 	p.Name = val
 }
 func (p *StructDesc) SetFields(val []*FieldDesc) {
@@ -1680,6 +1835,18 @@ var fieldIDToName_StructDesc = map[int16]string{
 	1: "Name",
 	2: "Fields",
 	3: "Annotations",
+}
+
+func (p *StructDesc) IsSetName() bool {
+	return p.Name != nil
+}
+
+func (p *StructDesc) IsSetFields() bool {
+	return p.Fields != nil
+}
+
+func (p *StructDesc) IsSetAnnotations() bool {
+	return p.Annotations != nil
 }
 
 func (p *StructDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -1765,7 +1932,7 @@ func (p *StructDesc) ReadField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.Name = v
+		p.Name = &v
 	}
 	return nil
 }
@@ -1848,14 +2015,16 @@ WriteStructEndError:
 }
 
 func (p *StructDesc) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteString(p.Name); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetName() {
+		if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.Name); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -1865,22 +2034,24 @@ WriteFieldEndError:
 }
 
 func (p *StructDesc) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Fields", thrift.LIST, 2); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Fields)); err != nil {
-		return err
-	}
-	for _, v := range p.Fields {
-		if err := v.Write(oprot); err != nil {
+	if p.IsSetFields() {
+		if err = oprot.WriteFieldBegin("Fields", thrift.LIST, 2); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Fields)); err != nil {
 			return err
 		}
-	}
-	if err := oprot.WriteListEnd(); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+		for _, v := range p.Fields {
+			if err := v.Write(oprot); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -1890,22 +2061,24 @@ WriteFieldEndError:
 }
 
 func (p *StructDesc) writeField3(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 3); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
-		return err
-	}
-	for _, v := range p.Annotations {
-		if err := v.Write(oprot); err != nil {
+	if p.IsSetAnnotations() {
+		if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 3); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
 			return err
 		}
-	}
-	if err := oprot.WriteListEnd(); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+		for _, v := range p.Annotations {
+			if err := v.Write(oprot); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -1939,9 +2112,14 @@ func (p *StructDesc) DeepEqual(ano *StructDesc) bool {
 	return true
 }
 
-func (p *StructDesc) Field1DeepEqual(src string) bool {
+func (p *StructDesc) Field1DeepEqual(src *string) bool {
 
-	if strings.Compare(p.Name, src) != 0 {
+	if p.Name == src {
+		return true
+	} else if p.Name == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.Name, *src) != 0 {
 		return false
 	}
 	return true
@@ -1974,12 +2152,12 @@ func (p *StructDesc) Field3DeepEqual(src []*Annotation) bool {
 }
 
 type FunctionDesc struct {
-	Name           string        `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
-	Oneway         bool          `thrift:"Oneway,2" frugal:"2,default,bool" json:"Oneway"`
-	HasRequestBase bool          `thrift:"HasRequestBase,3" frugal:"3,default,bool" json:"HasRequestBase"`
-	Request        *TypeDesc     `thrift:"Request,4" frugal:"4,default,TypeDesc" json:"Request"`
-	Response       *TypeDesc     `thrift:"Response,5" frugal:"5,default,TypeDesc" json:"Response"`
-	Annotations    []*Annotation `thrift:"Annotations,6" frugal:"6,default,list<Annotation>" json:"Annotations"`
+	Name           *string       `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
+	Oneway         *bool         `thrift:"Oneway,2,optional" frugal:"2,optional,bool" json:"Oneway,omitempty"`
+	HasRequestBase *bool         `thrift:"HasRequestBase,3,optional" frugal:"3,optional,bool" json:"HasRequestBase,omitempty"`
+	Request        *TypeDesc     `thrift:"Request,4,optional" frugal:"4,optional,TypeDesc" json:"Request,omitempty"`
+	Response       *TypeDesc     `thrift:"Response,5,optional" frugal:"5,optional,TypeDesc" json:"Response,omitempty"`
+	Annotations    []*Annotation `thrift:"Annotations,6,optional" frugal:"6,optional,list<Annotation>" json:"Annotations,omitempty"`
 }
 
 func NewFunctionDesc() *FunctionDesc {
@@ -1990,16 +2168,31 @@ func (p *FunctionDesc) InitDefault() {
 	*p = FunctionDesc{}
 }
 
+var FunctionDesc_Name_DEFAULT string
+
 func (p *FunctionDesc) GetName() (v string) {
-	return p.Name
+	if !p.IsSetName() {
+		return FunctionDesc_Name_DEFAULT
+	}
+	return *p.Name
 }
+
+var FunctionDesc_Oneway_DEFAULT bool
 
 func (p *FunctionDesc) GetOneway() (v bool) {
-	return p.Oneway
+	if !p.IsSetOneway() {
+		return FunctionDesc_Oneway_DEFAULT
+	}
+	return *p.Oneway
 }
 
+var FunctionDesc_HasRequestBase_DEFAULT bool
+
 func (p *FunctionDesc) GetHasRequestBase() (v bool) {
-	return p.HasRequestBase
+	if !p.IsSetHasRequestBase() {
+		return FunctionDesc_HasRequestBase_DEFAULT
+	}
+	return *p.HasRequestBase
 }
 
 var FunctionDesc_Request_DEFAULT *TypeDesc
@@ -2020,16 +2213,21 @@ func (p *FunctionDesc) GetResponse() (v *TypeDesc) {
 	return p.Response
 }
 
+var FunctionDesc_Annotations_DEFAULT []*Annotation
+
 func (p *FunctionDesc) GetAnnotations() (v []*Annotation) {
+	if !p.IsSetAnnotations() {
+		return FunctionDesc_Annotations_DEFAULT
+	}
 	return p.Annotations
 }
-func (p *FunctionDesc) SetName(val string) {
+func (p *FunctionDesc) SetName(val *string) {
 	p.Name = val
 }
-func (p *FunctionDesc) SetOneway(val bool) {
+func (p *FunctionDesc) SetOneway(val *bool) {
 	p.Oneway = val
 }
-func (p *FunctionDesc) SetHasRequestBase(val bool) {
+func (p *FunctionDesc) SetHasRequestBase(val *bool) {
 	p.HasRequestBase = val
 }
 func (p *FunctionDesc) SetRequest(val *TypeDesc) {
@@ -2051,12 +2249,28 @@ var fieldIDToName_FunctionDesc = map[int16]string{
 	6: "Annotations",
 }
 
+func (p *FunctionDesc) IsSetName() bool {
+	return p.Name != nil
+}
+
+func (p *FunctionDesc) IsSetOneway() bool {
+	return p.Oneway != nil
+}
+
+func (p *FunctionDesc) IsSetHasRequestBase() bool {
+	return p.HasRequestBase != nil
+}
+
 func (p *FunctionDesc) IsSetRequest() bool {
 	return p.Request != nil
 }
 
 func (p *FunctionDesc) IsSetResponse() bool {
 	return p.Response != nil
+}
+
+func (p *FunctionDesc) IsSetAnnotations() bool {
+	return p.Annotations != nil
 }
 
 func (p *FunctionDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -2172,7 +2386,7 @@ func (p *FunctionDesc) ReadField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.Name = v
+		p.Name = &v
 	}
 	return nil
 }
@@ -2181,7 +2395,7 @@ func (p *FunctionDesc) ReadField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
-		p.Oneway = v
+		p.Oneway = &v
 	}
 	return nil
 }
@@ -2190,7 +2404,7 @@ func (p *FunctionDesc) ReadField3(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
-		p.HasRequestBase = v
+		p.HasRequestBase = &v
 	}
 	return nil
 }
@@ -2281,14 +2495,16 @@ WriteStructEndError:
 }
 
 func (p *FunctionDesc) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteString(p.Name); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetName() {
+		if err = oprot.WriteFieldBegin("Name", thrift.STRING, 1); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.Name); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2298,14 +2514,16 @@ WriteFieldEndError:
 }
 
 func (p *FunctionDesc) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Oneway", thrift.BOOL, 2); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteBool(p.Oneway); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetOneway() {
+		if err = oprot.WriteFieldBegin("Oneway", thrift.BOOL, 2); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.Oneway); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2315,14 +2533,16 @@ WriteFieldEndError:
 }
 
 func (p *FunctionDesc) writeField3(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("HasRequestBase", thrift.BOOL, 3); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteBool(p.HasRequestBase); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetHasRequestBase() {
+		if err = oprot.WriteFieldBegin("HasRequestBase", thrift.BOOL, 3); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteBool(*p.HasRequestBase); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2332,14 +2552,16 @@ WriteFieldEndError:
 }
 
 func (p *FunctionDesc) writeField4(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Request", thrift.STRUCT, 4); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := p.Request.Write(oprot); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetRequest() {
+		if err = oprot.WriteFieldBegin("Request", thrift.STRUCT, 4); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := p.Request.Write(oprot); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2349,14 +2571,16 @@ WriteFieldEndError:
 }
 
 func (p *FunctionDesc) writeField5(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Response", thrift.STRUCT, 5); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := p.Response.Write(oprot); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+	if p.IsSetResponse() {
+		if err = oprot.WriteFieldBegin("Response", thrift.STRUCT, 5); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := p.Response.Write(oprot); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2366,22 +2590,24 @@ WriteFieldEndError:
 }
 
 func (p *FunctionDesc) writeField6(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 6); err != nil {
-		goto WriteFieldBeginError
-	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
-		return err
-	}
-	for _, v := range p.Annotations {
-		if err := v.Write(oprot); err != nil {
+	if p.IsSetAnnotations() {
+		if err = oprot.WriteFieldBegin("Annotations", thrift.LIST, 6); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteListBegin(thrift.STRUCT, len(p.Annotations)); err != nil {
 			return err
 		}
-	}
-	if err := oprot.WriteListEnd(); err != nil {
-		return err
-	}
-	if err = oprot.WriteFieldEnd(); err != nil {
-		goto WriteFieldEndError
+		for _, v := range p.Annotations {
+			if err := v.Write(oprot); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
 	}
 	return nil
 WriteFieldBeginError:
@@ -2424,23 +2650,38 @@ func (p *FunctionDesc) DeepEqual(ano *FunctionDesc) bool {
 	return true
 }
 
-func (p *FunctionDesc) Field1DeepEqual(src string) bool {
+func (p *FunctionDesc) Field1DeepEqual(src *string) bool {
 
-	if strings.Compare(p.Name, src) != 0 {
+	if p.Name == src {
+		return true
+	} else if p.Name == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.Name, *src) != 0 {
 		return false
 	}
 	return true
 }
-func (p *FunctionDesc) Field2DeepEqual(src bool) bool {
+func (p *FunctionDesc) Field2DeepEqual(src *bool) bool {
 
-	if p.Oneway != src {
+	if p.Oneway == src {
+		return true
+	} else if p.Oneway == nil || src == nil {
+		return false
+	}
+	if *p.Oneway != *src {
 		return false
 	}
 	return true
 }
-func (p *FunctionDesc) Field3DeepEqual(src bool) bool {
+func (p *FunctionDesc) Field3DeepEqual(src *bool) bool {
 
-	if p.HasRequestBase != src {
+	if p.HasRequestBase == src {
+		return true
+	} else if p.HasRequestBase == nil || src == nil {
+		return false
+	}
+	if *p.HasRequestBase != *src {
 		return false
 	}
 	return true
@@ -2474,9 +2715,9 @@ func (p *FunctionDesc) Field6DeepEqual(src []*Annotation) bool {
 }
 
 type ServiceDesc struct {
-	Name         string          `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
-	Functions    []*FunctionDesc `thrift:"Functions,2" frugal:"2,default,list<FunctionDesc>" json:"Functions"`
-	TypeDescList []*TypeDesc     `thrift:"TypeDescList,3" frugal:"3,default,list<TypeDesc>" json:"TypeDescList"`
+	Name       string          `thrift:"Name,1" frugal:"1,default,string" json:"Name"`
+	Functions  []*FunctionDesc `thrift:"Functions,2" frugal:"2,default,list<FunctionDesc>" json:"Functions"`
+	StructList []*StructDesc   `thrift:"StructList,3" frugal:"3,default,list<StructDesc>" json:"StructList"`
 }
 
 func NewServiceDesc() *ServiceDesc {
@@ -2495,8 +2736,8 @@ func (p *ServiceDesc) GetFunctions() (v []*FunctionDesc) {
 	return p.Functions
 }
 
-func (p *ServiceDesc) GetTypeDescList() (v []*TypeDesc) {
-	return p.TypeDescList
+func (p *ServiceDesc) GetStructList() (v []*StructDesc) {
+	return p.StructList
 }
 func (p *ServiceDesc) SetName(val string) {
 	p.Name = val
@@ -2504,14 +2745,14 @@ func (p *ServiceDesc) SetName(val string) {
 func (p *ServiceDesc) SetFunctions(val []*FunctionDesc) {
 	p.Functions = val
 }
-func (p *ServiceDesc) SetTypeDescList(val []*TypeDesc) {
-	p.TypeDescList = val
+func (p *ServiceDesc) SetStructList(val []*StructDesc) {
+	p.StructList = val
 }
 
 var fieldIDToName_ServiceDesc = map[int16]string{
 	1: "Name",
 	2: "Functions",
-	3: "TypeDescList",
+	3: "StructList",
 }
 
 func (p *ServiceDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -2627,14 +2868,14 @@ func (p *ServiceDesc) ReadField3(iprot thrift.TProtocol) error {
 	if err != nil {
 		return err
 	}
-	p.TypeDescList = make([]*TypeDesc, 0, size)
+	p.StructList = make([]*StructDesc, 0, size)
 	for i := 0; i < size; i++ {
-		_elem := NewTypeDesc()
+		_elem := NewStructDesc()
 		if err := _elem.Read(iprot); err != nil {
 			return err
 		}
 
-		p.TypeDescList = append(p.TypeDescList, _elem)
+		p.StructList = append(p.StructList, _elem)
 	}
 	if err := iprot.ReadListEnd(); err != nil {
 		return err
@@ -2722,13 +2963,13 @@ WriteFieldEndError:
 }
 
 func (p *ServiceDesc) writeField3(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("TypeDescList", thrift.LIST, 3); err != nil {
+	if err = oprot.WriteFieldBegin("StructList", thrift.LIST, 3); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.TypeDescList)); err != nil {
+	if err := oprot.WriteListBegin(thrift.STRUCT, len(p.StructList)); err != nil {
 		return err
 	}
-	for _, v := range p.TypeDescList {
+	for _, v := range p.StructList {
 		if err := v.Write(oprot); err != nil {
 			return err
 		}
@@ -2765,7 +3006,7 @@ func (p *ServiceDesc) DeepEqual(ano *ServiceDesc) bool {
 	if !p.Field2DeepEqual(ano.Functions) {
 		return false
 	}
-	if !p.Field3DeepEqual(ano.TypeDescList) {
+	if !p.Field3DeepEqual(ano.StructList) {
 		return false
 	}
 	return true
@@ -2791,12 +3032,12 @@ func (p *ServiceDesc) Field2DeepEqual(src []*FunctionDesc) bool {
 	}
 	return true
 }
-func (p *ServiceDesc) Field3DeepEqual(src []*TypeDesc) bool {
+func (p *ServiceDesc) Field3DeepEqual(src []*StructDesc) bool {
 
-	if len(p.TypeDescList) != len(src) {
+	if len(p.StructList) != len(src) {
 		return false
 	}
-	for i, v := range p.TypeDescList {
+	for i, v := range p.StructList {
 		_src := src[i]
 		if !v.DeepEqual(_src) {
 			return false
