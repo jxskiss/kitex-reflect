@@ -11,9 +11,20 @@ import (
 	idl "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl"
 )
 
+func newPluginGenerator(ast *parser.Thrift) *pluginGenerator {
+	gen := &pluginGenerator{
+		ast:       ast,
+		typeIndex: make(map[string]int),
+	}
+	return gen
+}
+
 type pluginGenerator struct {
 	ast  *parser.Thrift
 	desc *idl.ServiceDesc
+
+	typeList  []*idl.TypeDesc
+	typeIndex map[string]int
 }
 
 func (p *pluginGenerator) getPkgName() string {
@@ -36,9 +47,8 @@ func (p *pluginGenerator) getOutputFile(outputPath string) string {
 func (p *pluginGenerator) genServiceDesc() (string, error) {
 	svc := p.ast.Services[0]
 	p.desc = &idl.ServiceDesc{
-		Name:         svc.Name,
-		Functions:    nil,
-		TypeDescList: nil,
+		Name:      svc.Name,
+		Functions: nil,
 	}
 	for _, fn := range svc.Functions {
 		fnDesc, err := p.getFunctionDesc(p.ast, fn)
@@ -94,14 +104,11 @@ func (p *pluginGenerator) getReqTypeDesc(tree *parser.Thrift, args []*parser.Fie
 	reqDesc := &idl.TypeDesc{
 		Name: "",
 		Type: idl.Type_STRUCT,
-		Key:  nil,
-		Elem: nil,
 		Struct: &idl.StructDesc{
 			Name:        "",
 			Fields:      nil,
 			Annotations: nil,
 		},
-		IsRequestBase: nil,
 	}
 	argDesc, err := p.getStructDesc(tree, arg.Type.Name, 0)
 	if err != nil {
@@ -117,12 +124,9 @@ func (p *pluginGenerator) getReqTypeDesc(tree *parser.Thrift, args []*parser.Fie
 		DefaultValue:  nil,
 		TypeDescIndex: nil,
 		Type: &idl.TypeDesc{
-			Name:          argDesc.Name,
-			Type:          idl.Type_STRUCT,
-			Key:           nil,
-			Elem:          nil,
-			Struct:        argDesc,
-			IsRequestBase: nil,
+			Name:   argDesc.Name,
+			Type:   idl.Type_STRUCT,
+			Struct: argDesc,
 		},
 		Annotations: nil,
 	}
@@ -134,19 +138,38 @@ func (p *pluginGenerator) getRespTypeDesc(tree *parser.Thrift, typ *parser.Type)
 	if typ.Category != parser.Category_Struct {
 		return nil, fmt.Errorf("unsupported response type: %v", typ.Category)
 	}
-	structDesc, err := p.getStructDesc(tree, typ.Name, 0)
+
+	respDesc := &idl.TypeDesc{
+		Name: "",
+		Type: idl.Type_STRUCT,
+		Struct: &idl.StructDesc{
+			Name:        "",
+			Fields:      nil,
+			Annotations: nil,
+		},
+	}
+	argDesc, err := p.getStructDesc(tree, typ.Name, 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get response struct descriptor: %w", err)
 	}
-	desc := &idl.TypeDesc{
-		Name:          typ.Name,
-		Type:          idl.Type_STRUCT,
-		Key:           nil,
-		Elem:          nil,
-		Struct:        structDesc,
-		IsRequestBase: nil,
+	fieldDesc := &idl.FieldDesc{
+		Name:          "",
+		Alias:         "",
+		ID:            0,
+		Required:      false,
+		Optional:      false,
+		IsException:   false,
+		DefaultValue:  nil,
+		TypeDescIndex: nil,
+		Type: &idl.TypeDesc{
+			Name:   typ.Name,
+			Type:   idl.Type_STRUCT,
+			Struct: argDesc,
+		},
+		Annotations: nil,
 	}
-	return desc, nil
+	respDesc.Struct.Fields = append(respDesc.Struct.Fields, fieldDesc)
+	return respDesc, nil
 }
 
 func (p *pluginGenerator) getStructDesc(tree *parser.Thrift, structName string, recurDepth int) (*idl.StructDesc, error) {
@@ -268,7 +291,7 @@ var typeEnumTable = [...]idl.Type{
 	parser.Category_Map:       idl.Type_MAP,
 	parser.Category_List:      idl.Type_LIST,
 	parser.Category_Set:       idl.Type_SET,
-	parser.Category_Enum:      idl.Type_I32,
+	parser.Category_Enum:      idl.Type_I64,
 	parser.Category_Struct:    idl.Type_STRUCT,
 	parser.Category_Union:     idl.Type_STRUCT,
 	parser.Category_Exception: idl.Type_STRUCT,

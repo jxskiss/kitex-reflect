@@ -38,9 +38,7 @@ func main() {
 		println(string(requestJSON))
 	})
 
-	gen := &pluginGenerator{
-		ast: request.AST,
-	}
+	gen := newPluginGenerator(request.AST)
 	serviceDesc, err := gen.genServiceDesc()
 	if err != nil {
 		println("Failed to generate service descriptor:", err.Error())

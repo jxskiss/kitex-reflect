@@ -67,7 +67,7 @@ func (cmp *DiffComparator) diffService(k, p *descriptor.ServiceDescriptor) {
 			cmp.log(fmt.Sprintf("ERROR: [svc] cannot find function %s from kitex's service descriptor", name))
 			continue
 		}
-		pluginFunc, err := k.LookupFunctionByMethod(name)
+		pluginFunc, err := p.LookupFunctionByMethod(name)
 		if err != nil {
 			cmp.log(fmt.Sprintf("ERROR: [svc] cannot find function %s from plugin's service descriptor", name))
 			continue
@@ -100,9 +100,9 @@ func (cmp *DiffComparator) diffFuncResponse(prefix string, k, p *descriptor.Type
 	cmp.checkEqual(prefix, "response type", k.Type, p.Type)
 	cmp.checkEqual(prefix, "response isRequestBase", k.IsRequestBase, p.IsRequestBase)
 
-	cmp.diffTypeDescriptor(prefix+"resp.key", k.Key, p.Key)
-	cmp.diffTypeDescriptor(prefix+"resp.elem", k.Elem, p.Elem)
-	cmp.diffStructDescriptor(prefix+"resp.struct", k.Struct, p.Struct)
+	cmp.diffTypeDescriptor(prefix+".resp.key", k.Key, p.Key)
+	cmp.diffTypeDescriptor(prefix+".resp.elem", k.Elem, p.Elem)
+	cmp.diffStructDescriptor(prefix+".resp.struct", k.Struct, p.Struct)
 }
 
 func (cmp *DiffComparator) diffTypeDescriptor(prefix string, k, p *descriptor.TypeDescriptor) {
@@ -148,8 +148,8 @@ func (cmp *DiffComparator) diffStructField(prefix string, k, p *descriptor.Field
 	cmp.checkEqual(prefix, "field isOptional", k.Optional, p.Optional)
 	cmp.checkEqual(prefix, "field isException", k.IsException, p.IsException)
 	cmp.checkEqual(prefix, "field default value", k.DefaultValue, p.DefaultValue)
-	cmp.checkEqual(prefix, "field http mapping", k.HTTPMapping == nil, p.HTTPMapping == nil)
-	cmp.checkEqual(prefix, "field value mapping", k.ValueMapping == nil, p.ValueMapping == nil)
+	cmp.checkEqual(prefix, "field has http mapping", k.HTTPMapping != nil, p.HTTPMapping != nil)
+	cmp.checkEqual(prefix, "field has value mapping", k.ValueMapping != nil, p.ValueMapping != nil)
 
 	cmp.diffTypeDescriptor(prefix+"."+k.Name, k.Type, p.Type)
 }

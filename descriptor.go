@@ -2,11 +2,11 @@ package kitexreflect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
+	"reflect"
 	"time"
-	"unicode"
 
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/generic"
@@ -172,23 +172,23 @@ func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descripto
 		DefaultFields:  make(map[string]*descriptor.FieldDescriptor),
 	}
 	for _, fDesc := range tDesc.Fields {
-		tmp, err := p.convertFieldDesc(fDesc)
+		_f, err := p.convertFieldDesc(tDesc.Name, fDesc)
 		if err != nil {
 			return nil, err
 		}
-		desc.FieldsByID[tmp.ID] = tmp
-		desc.FieldsByName[tmp.Name] = tmp
-		if fDesc.Required {
-			desc.RequiredFields[tmp.ID] = tmp
+		desc.FieldsByID[_f.ID] = _f
+		desc.FieldsByName[_f.FieldName()] = _f
+		if _f.Required {
+			desc.RequiredFields[_f.ID] = _f
 		}
-		if fDesc.DefaultValue != nil {
-			desc.DefaultFields[tmp.Name] = tmp
+		if _f.DefaultValue != nil {
+			desc.DefaultFields[_f.Name] = _f
 		}
 	}
 	return desc, nil
 }
 
-func (p *descriptorBuilder) convertFieldDesc(tDesc *idl.FieldDesc) (*descriptor.FieldDescriptor, error) {
+func (p *descriptorBuilder) convertFieldDesc(structName string, tDesc *idl.FieldDesc) (*descriptor.FieldDescriptor, error) {
 	typDesc, err := p.convertTypeDesc(tDesc.Type)
 	if err != nil {
 		return nil, err
@@ -235,7 +235,7 @@ func (p *descriptorBuilder) convertFieldDesc(tDesc *idl.FieldDesc) (*descriptor.
 			}
 		}
 	}
-	if desc.HTTPMapping == nil {
+	if desc.HTTPMapping == nil && structName != "" && desc.FieldName() != "" {
 		desc.HTTPMapping = descriptor.DefaultNewMapping(desc.FieldName())
 	}
 
@@ -271,41 +271,23 @@ func (p *descriptorBuilder) convertTypeEnum(tTyp idl.Type) (descriptor.Type, err
 }
 
 func (p *descriptorBuilder) parseDefaultValue(field *idl.FieldDesc) (interface{}, error) {
+	var out interface{}
 	str := *field.DefaultValue
 	switch field.Type.Type {
 	case idl.Type_BOOL:
-		return strconv.ParseBool(str)
-	case idl.Type_BYTE:
-		if isDigit(str) {
-			val, err := strconv.ParseInt(str, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			return byte(val), nil
-		}
-		if len(str) == 1 {
-			return byte(str[0]), nil
-		}
-		return 0, fmt.Errorf("invalid default value %s for type byte", str)
+		out = new(bool)
 	case idl.Type_DOUBLE:
-		return strconv.ParseFloat(str, 64)
+		out = new(float64)
 	case idl.Type_I16:
-		val, err := strconv.ParseInt(str, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		return int16(val), nil
+		out = new(int16)
 	case idl.Type_I32:
-		val, err := strconv.ParseInt(str, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		return int32(val), nil
+		out = new(int32)
 	case idl.Type_I64:
-		return strconv.ParseInt(str, 10, 64)
+		out = new(int64)
 	case idl.Type_STRING:
-		return str, nil
-	case idl.Type_STRUCT,
+		out = new(string)
+	case idl.Type_BYTE,
+		idl.Type_STRUCT,
 		idl.Type_MAP,
 		idl.Type_SET,
 		idl.Type_LIST,
@@ -316,13 +298,10 @@ func (p *descriptorBuilder) parseDefaultValue(field *idl.FieldDesc) (interface{}
 	default:
 		return nil, fmt.Errorf("not supported field type: %v", field.Type.Type)
 	}
-}
-
-func isDigit(str string) bool {
-	for _, x := range str {
-		if !unicode.IsDigit(x) {
-			return false
-		}
+	err := json.Unmarshal([]byte(str), out)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse default value: %w", err)
 	}
-	return str != ""
+	out = reflect.Indirect(reflect.ValueOf(out)).Interface()
+	return out, nil
 }

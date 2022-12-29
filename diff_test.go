@@ -31,6 +31,9 @@ func TestDiffComparator(t *testing.T) {
 	allMsgs := diff.Messages()
 	errMsgs := diff.ErrorMessages()
 	infoMsgs := diff.InfoMessages()
+	for _, msg := range errMsgs {
+		t.Log(msg)
+	}
 	assert.True(t, len(allMsgs) > 0)
 	assert.True(t, len(errMsgs) == 0)
 	assert.True(t, len(infoMsgs) == len(allMsgs))
