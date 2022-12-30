@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/cloudwego/kitex v0.4.4
 	github.com/cloudwego/thriftgo v0.2.4
-	github.com/jxskiss/kitex-reflect/kitex_gen v0.1.0
+	github.com/jxskiss/kitex-reflect/kitex_gen v0.2.0
 	github.com/stretchr/testify v1.8.1
 )
 
