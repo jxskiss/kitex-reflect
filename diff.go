@@ -74,6 +74,49 @@ func (cmp *DiffComparator) diffService(k, p *descriptor.ServiceDescriptor) {
 		}
 		cmp.diffFunction(kitexFunc, pluginFunc)
 	}
+
+	cmp.diffRouter(k, p)
+}
+
+func (cmp *DiffComparator) diffRouter(k, p *descriptor.ServiceDescriptor) {
+	if k.Router == nil && p.Router == nil {
+		cmp.log("INFO: [router] both router is nil")
+		return
+	}
+	kr := reflect.ValueOf(k.Router)
+	pr := reflect.ValueOf(p.Router)
+	kTrees := kr.Elem().FieldByName("trees")
+	pTrees := pr.Elem().FieldByName("trees")
+	cmp.checkEqual("router", "router length", kTrees.Len(), pTrees.Len())
+
+	for _, key := range kTrees.MapKeys() {
+		kNode := kTrees.MapIndex(key)
+		pNode := pTrees.MapIndex(key)
+		cmp.diffRouterNode("router.node", kNode, pNode)
+	}
+}
+
+func (cmp *DiffComparator) diffRouterNode(prefix string, k, p reflect.Value) {
+	cmp.checkEqual(prefix, "node is valid", k.IsValid(), p.IsValid())
+	if !k.IsValid() {
+		return
+	}
+
+	cmp.checkEqual(prefix, "node path",
+		k.Elem().FieldByName("path").String(),
+		p.Elem().FieldByName("path").String(),
+	)
+
+	kChildren := k.Elem().FieldByName("children")
+	pChildren := p.Elem().FieldByName("children")
+	cmp.checkEqual(prefix, "node children length", kChildren.Len(), pChildren.Len())
+
+	for i := 0; i < kChildren.Len(); i++ {
+		nextPrefix := fmt.Sprintf("%s.children[%d]", prefix, i)
+		kNode := kChildren.Index(i)
+		pNode := pChildren.Index(i)
+		cmp.diffRouterNode(nextPrefix, kNode, pNode)
+	}
 }
 
 func (cmp *DiffComparator) diffFunction(k, p *descriptor.FunctionDescriptor) {

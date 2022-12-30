@@ -103,12 +103,23 @@ func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
 	p.idlDesc = tDesc
 	p.desc.Name = tDesc.Name
 	p.desc.Functions = make(map[string]*descriptor.FunctionDescriptor, len(tDesc.Functions))
+	p.desc.Router = descriptor.NewRouter()
 	for _, tFuncDesc := range tDesc.Functions {
 		fDesc, err := p.convertFunctionDesc(tFuncDesc)
 		if err != nil {
 			return nil, err
 		}
 		p.desc.Functions[fDesc.Name] = fDesc
+		for _, ann := range tFuncDesc.Annotations {
+			for _, v := range ann.GetValues() {
+				if handle, ok := descriptor.FindAnnotation(ann.GetKey(), v); ok {
+					if nr, ok := handle.(descriptor.NewRoute); ok {
+						p.desc.Router.Handle(nr(v, fDesc))
+						break
+					}
+				}
+			}
+		}
 	}
 	return p.desc, nil
 }

@@ -3,3 +3,5 @@ install_plugin:
 
 gen_idl:
 	kitex -v -thrift-plugin=kitex-reflect idl.thrift
+
+sinclude ./testdir/*.mk
