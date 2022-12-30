@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cloudwego/kitex/client"
@@ -16,7 +19,14 @@ import (
 	svc "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl/reflectionservice"
 )
 
-func NewDescriptorProvider(ctx context.Context, serviceName string, reloadInterval time.Duration, opts ...client.Option) (generic.DescriptorProvider, error) {
+const defaultDebounceInterval = 10 * time.Second
+
+func defaultErrorHandler(err error, msg string) {
+	log.Printf("ERROR: %s: %v", msg, err)
+}
+
+// NewDescriptorProvider creates a ProviderImpl which implements [generic.DescriptorProvider].
+func NewDescriptorProvider(ctx context.Context, serviceName string, opts ...client.Option) (*ProviderImpl, error) {
 	cli, err := svc.NewClient(serviceName, opts...)
 	if err != nil {
 		return nil, err
@@ -30,53 +40,120 @@ func NewDescriptorProvider(ctx context.Context, serviceName string, reloadInterv
 		return nil, err
 	}
 
-	impl := &providerImpl{
-		cli:            cli,
-		reloadInterval: reloadInterval,
-		close:          make(chan struct{}),
-		updates:        make(chan *descriptor.ServiceDescriptor, 1),
+	impl := &ProviderImpl{
+		DebounceInterval: defaultDebounceInterval,
+		ErrorHandler:     defaultErrorHandler,
+		cli:              cli,
+		serviceName:      serviceName,
+		updates:          make(chan *descriptor.ServiceDescriptor, 1),
 	}
 	impl.updates <- desc
-
-	// TODO: we may don't need to do reloading at regular interval,
-	//   it may be better to trigger reloading by caller.
-	go impl.startReloading()
-
 	return impl, nil
 }
 
-type providerImpl struct {
-	cli            svc.Client
-	reloadInterval time.Duration
+var _ generic.DescriptorProvider = &ProviderImpl{}
 
-	close   chan struct{}
+// ProviderImpl connects to a Kitex service which has reflection support,
+// it calls the service's method ReflectService to build service descriptor.
+// It implements [generic.DescriptorProvider].
+type ProviderImpl struct {
+
+	// DebounceInterval sets max interval to debounce requests
+	// sent to backend service. The default is 10 seconds.
+	DebounceInterval time.Duration
+
+	// ErrorHandler optionally specifies an error handler function
+	// for errors happened when updating service descriptor from
+	// backend service.
+	// By default, it logs error using the [log] package.
+	ErrorHandler func(err error, msg string)
+
+	cli         svc.Client
+	serviceName string
+
+	preUpdateSec int64
+	updating     int64
+
+	closeMu sync.Mutex
+	closed  bool
 	updates chan *descriptor.ServiceDescriptor
 }
 
-func (p *providerImpl) Close() error {
-	close(p.close)
+// Close closes the provider and the channel returned by Provide.
+func (p *ProviderImpl) Close() error {
+	p.closeMu.Lock()
+	if !p.closed {
+		p.closed = true
+		close(p.updates)
+	}
+	p.closeMu.Unlock()
 	return nil
 }
 
-func (p *providerImpl) Provide() <-chan *descriptor.ServiceDescriptor {
+func (p *ProviderImpl) isClosed() (ret bool) {
+	p.closeMu.Lock()
+	ret = p.closed
+	p.closeMu.Unlock()
+	return
+}
+
+// Provide returns a channel for service descriptors.
+func (p *ProviderImpl) Provide() <-chan *descriptor.ServiceDescriptor {
 	return p.updates
 }
 
-func (p *providerImpl) startReloading() {
-
-	// TODO
-
-	select {
-	case <-p.close:
-		close(p.updates)
+// Update triggers updating service descriptor from backend service.
+// The actual rpc requests will be debounced according to DebounceInterval.
+// This method is safe to call concurrently.
+func (p *ProviderImpl) Update(ctx context.Context) {
+	if p.isClosed() {
+		return
 	}
+	preUpdateTime := time.Unix(atomic.LoadInt64(&p.preUpdateSec), 0)
+	if time.Since(preUpdateTime) < p.DebounceInterval {
+		return
+	}
+
+	if atomic.CompareAndSwapInt64(&p.updating, 0, 1) {
+		atomic.StoreInt64(&p.preUpdateSec, time.Now().Unix())
+		go p.doUpdate(ctx)
+	}
+}
+
+func (p *ProviderImpl) doUpdate(ctx context.Context) {
+	defer atomic.StoreInt64(&p.updating, 0)
+
+	resp, err := p.cli.ReflectService(ctx, newReflectServiceRequest())
+	if err != nil {
+		msg := fmt.Sprintf("failed to call %s.ReflectService", p.serviceName)
+		p.ErrorHandler(err, msg)
+		return
+	}
+	desc, err := BuildServiceDescriptor(ctx, resp)
+	if err != nil {
+		msg := fmt.Sprintf("failed to build descriptor for service %s", p.serviceName)
+		p.ErrorHandler(err, msg)
+		return
+	}
+
+	p.closeMu.Lock()
+	defer p.closeMu.Unlock()
+	if p.closed {
+		return
+	}
+	select {
+	case <-p.updates:
+	default:
+	}
+	p.updates <- desc
 }
 
 func newReflectServiceRequest() *ReflectServiceRequest {
 	return &ReflectServiceRequest{}
 }
 
-func BuildServiceDescriptor(ctx context.Context, resp *ReflectServiceResponse) (*descriptor.ServiceDescriptor, error) {
+// BuildServiceDescriptor builds a [descriptor.ServiceDescriptor] from a ReflectServiceResponse.
+func BuildServiceDescriptor(_ context.Context, resp *ReflectServiceResponse) (*descriptor.ServiceDescriptor, error) {
 	builder := &descriptorBuilder{
 		resp: resp,
 		desc: &descriptor.ServiceDescriptor{},
