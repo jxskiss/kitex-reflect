@@ -52,6 +52,7 @@ struct StructDesc {
     1: optional string Name
     2: optional list<FieldDesc> Fields
     3: optional list<Annotation> Annotations
+    4: optional string UniqueKey
 }
 
 struct FunctionDesc {

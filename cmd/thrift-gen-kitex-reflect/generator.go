@@ -14,6 +14,7 @@ import (
 func newPluginGenerator(ast *parser.Thrift) *pluginGenerator {
 	gen := &pluginGenerator{
 		ast:         ast,
+		namespace:   make(map[string]int),
 		structIndex: make(map[string]int),
 	}
 	return gen
@@ -22,6 +23,8 @@ func newPluginGenerator(ast *parser.Thrift) *pluginGenerator {
 type pluginGenerator struct {
 	ast  *parser.Thrift
 	desc *idl.ServiceDesc
+
+	namespace map[string]int
 
 	structList  []*idl.StructDesc
 	structIndex map[string]int
@@ -181,7 +184,8 @@ func (p *pluginGenerator) buildStructDesc(tree *parser.Thrift, structName string
 		tree = ref
 	}
 
-	idxKey := fmt.Sprintf("%s|%s|%s", tree.Filename, typPkg, typName)
+	typeNs := fmt.Sprintf("%s|%s", tree.Filename, typPkg)
+	idxKey := fmt.Sprintf("%d|%s", p.getNamespaceID(typeNs), typName)
 	structIdx, ok := p.structIndex[idxKey]
 	if ok {
 		return structIdx, nil
@@ -196,7 +200,15 @@ func (p *pluginGenerator) buildStructDesc(tree *parser.Thrift, structName string
 		Name:        &typName,
 		Fields:      nil,
 		Annotations: annotations,
+		UniqueKey:   &idxKey,
 	}
+
+	// We need to add the struct to structList before fully resolve it
+	// to avoid stack overflow when processing recursive types.
+	structIdx = len(p.structList)
+	p.structList = append(p.structList, desc)
+	p.structIndex[idxKey] = structIdx
+
 	for _, field := range structTyp.Fields {
 		fDesc, err := p.buildFieldDesc(tree, field, recurDepth+1)
 		if err != nil {
@@ -204,12 +216,16 @@ func (p *pluginGenerator) buildStructDesc(tree *parser.Thrift, structName string
 		}
 		desc.Fields = append(desc.Fields, fDesc)
 	}
-
-	structIdx = len(p.structList)
-	p.structList = append(p.structList, desc)
-	p.structIndex[idxKey] = structIdx
-
 	return structIdx, nil
+}
+
+func (p *pluginGenerator) getNamespaceID(ns string) int {
+	idx, ok := p.namespace[ns]
+	if !ok {
+		idx = len(p.namespace)
+		p.namespace[ns] = idx
+	}
+	return idx
 }
 
 func (p *pluginGenerator) getStructDesc(typeDesc *idl.TypeDesc) *idl.StructDesc {
@@ -252,6 +268,11 @@ func (p *pluginGenerator) buildTypeDesc(tree *parser.Thrift, typ *parser.Type, r
 	if typ == nil {
 		return nil, nil
 	}
+
+	if typDef, ok := tree.GetTypedef(typ.Name); ok {
+		return p.buildTypeDesc(tree, typDef.Type, recurDepth+1)
+	}
+
 	typEnum, err := p.convTypeEnum(typ)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert type enum: %w", err)

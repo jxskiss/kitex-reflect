@@ -11,15 +11,19 @@ import (
 
 func NewDiffComparator(kitexDesc, pluginDesc *descriptor.ServiceDescriptor) *DiffComparator {
 	cmp := &DiffComparator{
-		kDesc: kitexDesc,
-		pDesc: pluginDesc,
+		kDesc:       kitexDesc,
+		pDesc:       pluginDesc,
+		structCache: make(map[*descriptor.StructDescriptor]bool),
 	}
 	return cmp
 }
 
 type DiffComparator struct {
-	kDesc    *descriptor.ServiceDescriptor
-	pDesc    *descriptor.ServiceDescriptor
+	kDesc *descriptor.ServiceDescriptor
+	pDesc *descriptor.ServiceDescriptor
+
+	structCache map[*descriptor.StructDescriptor]bool
+
 	messages []string
 }
 
@@ -169,6 +173,13 @@ func (cmp *DiffComparator) diffStructDescriptor(prefix string, k, p *descriptor.
 		return
 	}
 
+	// Don't bother to diff again for recursive types.
+	if cmp.structCache[k] || cmp.structCache[p] {
+		return
+	}
+	cmp.structCache[k] = true
+	cmp.structCache[p] = true
+
 	cmp.checkEqual(prefix, "struct name", k.Name, p.Name)
 	cmp.checkEqual(prefix, "struct field IDs", getSortedKeys(k.FieldsByID), getSortedKeys(p.FieldsByID))
 	cmp.checkEqual(prefix, "struct field names", getSortedKeys(k.FieldsByName), getSortedKeys(p.FieldsByName))
@@ -184,6 +195,7 @@ func (cmp *DiffComparator) diffStructDescriptor(prefix string, k, p *descriptor.
 }
 
 func (cmp *DiffComparator) diffStructField(prefix string, k, p *descriptor.FieldDescriptor) {
+	prefix += "." + k.Name
 	cmp.checkEqual(prefix, "field id", k.ID, p.ID)
 	cmp.checkEqual(prefix, "field name", k.Name, p.Name)
 	cmp.checkEqual(prefix, "field alias", k.Alias, p.Alias)
@@ -194,7 +206,7 @@ func (cmp *DiffComparator) diffStructField(prefix string, k, p *descriptor.Field
 	cmp.checkEqual(prefix, "field has http mapping", k.HTTPMapping != nil, p.HTTPMapping != nil)
 	cmp.checkEqual(prefix, "field has value mapping", k.ValueMapping != nil, p.ValueMapping != nil)
 
-	cmp.diffTypeDescriptor(prefix+"."+k.Name, k.Type, p.Type)
+	cmp.diffTypeDescriptor(prefix, k.Type, p.Type)
 }
 
 func (cmp *DiffComparator) checkEqual(prefix, msg string, x, y interface{}) {

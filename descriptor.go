@@ -163,6 +163,8 @@ type descriptorBuilder struct {
 	desc *descriptor.ServiceDescriptor
 
 	idlDesc *idl.ServiceDesc
+
+	structCache map[string]*descriptor.StructDescriptor
 }
 
 func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
@@ -174,7 +176,9 @@ func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
 	if tDesc == nil {
 		return nil, errors.New("service descriptor not available")
 	}
+
 	p.idlDesc = tDesc
+	p.structCache = make(map[string]*descriptor.StructDescriptor, len(tDesc.Functions)*4)
 	p.desc.Name = tDesc.Name
 	p.desc.Functions = make(map[string]*descriptor.FunctionDescriptor, len(tDesc.Functions))
 	p.desc.Router = descriptor.NewRouter()
@@ -256,6 +260,14 @@ func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descripto
 	if tDesc == nil {
 		return nil, nil
 	}
+
+	uk := tDesc.GetUniqueKey()
+	if uk != "" {
+		if desc := p.structCache[uk]; desc != nil {
+			return desc, nil
+		}
+	}
+
 	desc := &descriptor.StructDescriptor{
 		Name:           tDesc.GetName(),
 		FieldsByID:     make(map[int32]*descriptor.FieldDescriptor, len(tDesc.Fields)),
@@ -263,6 +275,13 @@ func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descripto
 		RequiredFields: make(map[int32]*descriptor.FieldDescriptor),
 		DefaultFields:  make(map[string]*descriptor.FieldDescriptor),
 	}
+
+	// We need to add the struct descriptor to cache before fully converting
+	// it to avoid stack overflow when processing recursive types.
+	if uk != "" {
+		p.structCache[uk] = desc
+	}
+
 	for _, fDesc := range tDesc.Fields {
 		_f, err := p.convertFieldDesc(tDesc.GetName(), fDesc)
 		if err != nil {
@@ -372,9 +391,7 @@ func (p *descriptorBuilder) parseDefaultValue(field *idl.FieldDesc) (interface{}
 		out = new(float64)
 	case idl.Type_I16:
 		out = new(int16)
-	case idl.Type_I32:
-		out = new(int32)
-	case idl.Type_I64:
+	case idl.Type_I32, idl.Type_I64:
 		out = new(int64)
 	case idl.Type_STRING:
 		out = new(string)

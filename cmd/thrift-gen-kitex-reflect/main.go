@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/thriftgo/plugin"
+	"github.com/cloudwego/thriftgo/semantic"
 )
 
 var _ json.Marshaler
@@ -27,6 +28,11 @@ func main() {
 	}
 	if request.Language != "go" {
 		println("Unsupported language:", request.Language)
+		os.Exit(1)
+	}
+	err = semantic.ResolveSymbols(request.AST)
+	if err != nil {
+		println("Failed to resolve symbols:", err.Error())
 		os.Exit(1)
 	}
 

@@ -20,7 +20,7 @@ var pluginReflectImpl = struct {
 	err         error
 	payload     []byte
 }{
-	genTime: "20221229232700",
+	genTime: "20221230232100",
 }
 
 func ServeReflectServiceRequest(ctx context.Context, req interface{}, resp interface{}) error {
@@ -122,7 +122,8 @@ func buildPluginReflectRespPayload() error {
             "IsRequestBase": false
           }
         }
-      ]
+      ],
+      "UniqueKey": "0|ReflectServiceRequest"
     },
     {
       "Name": "ReflectServiceResponse",
@@ -136,7 +137,8 @@ func buildPluginReflectRespPayload() error {
             "IsRequestBase": false
           }
         }
-      ]
+      ],
+      "UniqueKey": "0|ReflectServiceResponse"
     }
   ]
 }`

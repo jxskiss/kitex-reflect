@@ -1291,6 +1291,20 @@ func (p *StructDesc) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
+		case 4:
+			if fieldTypeId == thrift.STRING {
+				l, err = p.FastReadField4(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
 		default:
 			l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
 			offset += l
@@ -1393,6 +1407,19 @@ func (p *StructDesc) FastReadField3(buf []byte) (int, error) {
 	return offset, nil
 }
 
+func (p *StructDesc) FastReadField4(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadString(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+		p.UniqueKey = &v
+
+	}
+	return offset, nil
+}
+
 // for compatibility
 func (p *StructDesc) FastWrite(buf []byte) int {
 	return 0
@@ -1405,6 +1432,7 @@ func (p *StructDesc) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWrit
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
 		offset += p.fastWriteField3(buf[offset:], binaryWriter)
+		offset += p.fastWriteField4(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -1418,6 +1446,7 @@ func (p *StructDesc) BLength() int {
 		l += p.field1Length()
 		l += p.field2Length()
 		l += p.field3Length()
+		l += p.field4Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -1471,6 +1500,17 @@ func (p *StructDesc) fastWriteField3(buf []byte, binaryWriter bthrift.BinaryWrit
 	return offset
 }
 
+func (p *StructDesc) fastWriteField4(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	if p.IsSetUniqueKey() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "UniqueKey", thrift.STRING, 4)
+		offset += bthrift.Binary.WriteStringNocopy(buf[offset:], binaryWriter, *p.UniqueKey)
+
+		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	}
+	return offset
+}
+
 func (p *StructDesc) field1Length() int {
 	l := 0
 	if p.IsSetName() {
@@ -1505,6 +1545,17 @@ func (p *StructDesc) field3Length() int {
 			l += v.BLength()
 		}
 		l += bthrift.Binary.ListEndLength()
+		l += bthrift.Binary.FieldEndLength()
+	}
+	return l
+}
+
+func (p *StructDesc) field4Length() int {
+	l := 0
+	if p.IsSetUniqueKey() {
+		l += bthrift.Binary.FieldBeginLength("UniqueKey", thrift.STRING, 4)
+		l += bthrift.Binary.StringLengthNocopy(*p.UniqueKey)
+
 		l += bthrift.Binary.FieldEndLength()
 	}
 	return l

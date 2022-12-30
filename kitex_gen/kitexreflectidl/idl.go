@@ -1785,6 +1785,7 @@ type StructDesc struct {
 	Name        *string       `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
 	Fields      []*FieldDesc  `thrift:"Fields,2,optional" frugal:"2,optional,list<FieldDesc>" json:"Fields,omitempty"`
 	Annotations []*Annotation `thrift:"Annotations,3,optional" frugal:"3,optional,list<Annotation>" json:"Annotations,omitempty"`
+	UniqueKey   *string       `thrift:"UniqueKey,4,optional" frugal:"4,optional,string" json:"UniqueKey,omitempty"`
 }
 
 func NewStructDesc() *StructDesc {
@@ -1821,6 +1822,15 @@ func (p *StructDesc) GetAnnotations() (v []*Annotation) {
 	}
 	return p.Annotations
 }
+
+var StructDesc_UniqueKey_DEFAULT string
+
+func (p *StructDesc) GetUniqueKey() (v string) {
+	if !p.IsSetUniqueKey() {
+		return StructDesc_UniqueKey_DEFAULT
+	}
+	return *p.UniqueKey
+}
 func (p *StructDesc) SetName(val *string) {
 	p.Name = val
 }
@@ -1830,11 +1840,15 @@ func (p *StructDesc) SetFields(val []*FieldDesc) {
 func (p *StructDesc) SetAnnotations(val []*Annotation) {
 	p.Annotations = val
 }
+func (p *StructDesc) SetUniqueKey(val *string) {
+	p.UniqueKey = val
+}
 
 var fieldIDToName_StructDesc = map[int16]string{
 	1: "Name",
 	2: "Fields",
 	3: "Annotations",
+	4: "UniqueKey",
 }
 
 func (p *StructDesc) IsSetName() bool {
@@ -1847,6 +1861,10 @@ func (p *StructDesc) IsSetFields() bool {
 
 func (p *StructDesc) IsSetAnnotations() bool {
 	return p.Annotations != nil
+}
+
+func (p *StructDesc) IsSetUniqueKey() bool {
+	return p.UniqueKey != nil
 }
 
 func (p *StructDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -1891,6 +1909,16 @@ func (p *StructDesc) Read(iprot thrift.TProtocol) (err error) {
 		case 3:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField3(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 4:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField4(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -1977,6 +2005,15 @@ func (p *StructDesc) ReadField3(iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *StructDesc) ReadField4(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(); err != nil {
+		return err
+	} else {
+		p.UniqueKey = &v
+	}
+	return nil
+}
+
 func (p *StructDesc) Write(oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin("StructDesc"); err != nil {
@@ -1993,6 +2030,10 @@ func (p *StructDesc) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField3(oprot); err != nil {
 			fieldId = 3
+			goto WriteFieldError
+		}
+		if err = p.writeField4(oprot); err != nil {
+			fieldId = 4
 			goto WriteFieldError
 		}
 
@@ -2087,6 +2128,25 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
 }
 
+func (p *StructDesc) writeField4(oprot thrift.TProtocol) (err error) {
+	if p.IsSetUniqueKey() {
+		if err = oprot.WriteFieldBegin("UniqueKey", thrift.STRING, 4); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteString(*p.UniqueKey); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 end error: ", p), err)
+}
+
 func (p *StructDesc) String() string {
 	if p == nil {
 		return "<nil>"
@@ -2107,6 +2167,9 @@ func (p *StructDesc) DeepEqual(ano *StructDesc) bool {
 		return false
 	}
 	if !p.Field3DeepEqual(ano.Annotations) {
+		return false
+	}
+	if !p.Field4DeepEqual(ano.UniqueKey) {
 		return false
 	}
 	return true
@@ -2147,6 +2210,18 @@ func (p *StructDesc) Field3DeepEqual(src []*Annotation) bool {
 		if !v.DeepEqual(_src) {
 			return false
 		}
+	}
+	return true
+}
+func (p *StructDesc) Field4DeepEqual(src *string) bool {
+
+	if p.UniqueKey == src {
+		return true
+	} else if p.UniqueKey == nil || src == nil {
+		return false
+	}
+	if strings.Compare(*p.UniqueKey, *src) != 0 {
+		return false
 	}
 	return true
 }
