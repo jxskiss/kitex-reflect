@@ -124,6 +124,93 @@ func (p *Type) Value() (driver.Value, error) {
 	return int64(*p), nil
 }
 
+type BuiltinType int64
+
+const (
+	BuiltinType_NOT_BUITIN BuiltinType = 0
+	BuiltinType_VOID       BuiltinType = 1
+	BuiltinType_BOOL       BuiltinType = 2
+	BuiltinType_BYTE       BuiltinType = 3
+	BuiltinType_I8         BuiltinType = 4
+	BuiltinType_I16        BuiltinType = 5
+	BuiltinType_I32        BuiltinType = 6
+	BuiltinType_I64        BuiltinType = 7
+	BuiltinType_DOUBLE     BuiltinType = 8
+	BuiltinType_STRING     BuiltinType = 9
+	BuiltinType_BINARY     BuiltinType = 10
+)
+
+func (p BuiltinType) String() string {
+	switch p {
+	case BuiltinType_NOT_BUITIN:
+		return "NOT_BUITIN"
+	case BuiltinType_VOID:
+		return "VOID"
+	case BuiltinType_BOOL:
+		return "BOOL"
+	case BuiltinType_BYTE:
+		return "BYTE"
+	case BuiltinType_I8:
+		return "I8"
+	case BuiltinType_I16:
+		return "I16"
+	case BuiltinType_I32:
+		return "I32"
+	case BuiltinType_I64:
+		return "I64"
+	case BuiltinType_DOUBLE:
+		return "DOUBLE"
+	case BuiltinType_STRING:
+		return "STRING"
+	case BuiltinType_BINARY:
+		return "BINARY"
+	}
+	return "<UNSET>"
+}
+
+func BuiltinTypeFromString(s string) (BuiltinType, error) {
+	switch s {
+	case "NOT_BUITIN":
+		return BuiltinType_NOT_BUITIN, nil
+	case "VOID":
+		return BuiltinType_VOID, nil
+	case "BOOL":
+		return BuiltinType_BOOL, nil
+	case "BYTE":
+		return BuiltinType_BYTE, nil
+	case "I8":
+		return BuiltinType_I8, nil
+	case "I16":
+		return BuiltinType_I16, nil
+	case "I32":
+		return BuiltinType_I32, nil
+	case "I64":
+		return BuiltinType_I64, nil
+	case "DOUBLE":
+		return BuiltinType_DOUBLE, nil
+	case "STRING":
+		return BuiltinType_STRING, nil
+	case "BINARY":
+		return BuiltinType_BINARY, nil
+	}
+	return BuiltinType(0), fmt.Errorf("not a valid BuiltinType string")
+}
+
+func BuiltinTypePtr(v BuiltinType) *BuiltinType { return &v }
+func (p *BuiltinType) Scan(value interface{}) (err error) {
+	var result sql.NullInt64
+	err = result.Scan(value)
+	*p = BuiltinType(result.Int64)
+	return
+}
+
+func (p *BuiltinType) Value() (driver.Value, error) {
+	if p == nil {
+		return nil, nil
+	}
+	return int64(*p), nil
+}
+
 type Annotation struct {
 	Key    string   `thrift:"Key,1" frugal:"1,default,string" json:"Key"`
 	Values []string `thrift:"Values,2" frugal:"2,default,list<string>" json:"Values"`
@@ -1169,13 +1256,15 @@ func (p *FieldDesc) Field9DeepEqual(src []*Annotation) bool {
 }
 
 type TypeDesc struct {
-	Name          *string     `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
-	Type          *Type       `thrift:"Type,2,optional" frugal:"2,optional,Type" json:"Type,omitempty"`
-	Key           *TypeDesc   `thrift:"Key,3,optional" frugal:"3,optional,TypeDesc" json:"Key,omitempty"`
-	Elem          *TypeDesc   `thrift:"Elem,4,optional" frugal:"4,optional,TypeDesc" json:"Elem,omitempty"`
-	Struct        *StructDesc `thrift:"Struct,5,optional" frugal:"5,optional,StructDesc" json:"Struct,omitempty"`
-	StructIdx     *int32      `thrift:"StructIdx,6,optional" frugal:"6,optional,i32" json:"StructIdx,omitempty"`
-	IsRequestBase *bool       `thrift:"IsRequestBase,7,optional" frugal:"7,optional,bool" json:"IsRequestBase,omitempty"`
+	Name          *string      `thrift:"Name,1,optional" frugal:"1,optional,string" json:"Name,omitempty"`
+	Type          *Type        `thrift:"Type,2,optional" frugal:"2,optional,Type" json:"Type,omitempty"`
+	Key           *TypeDesc    `thrift:"Key,3,optional" frugal:"3,optional,TypeDesc" json:"Key,omitempty"`
+	Elem          *TypeDesc    `thrift:"Elem,4,optional" frugal:"4,optional,TypeDesc" json:"Elem,omitempty"`
+	Struct        *StructDesc  `thrift:"Struct,5,optional" frugal:"5,optional,StructDesc" json:"Struct,omitempty"`
+	IsRequestBase *bool        `thrift:"IsRequestBase,6,optional" frugal:"6,optional,bool" json:"IsRequestBase,omitempty"`
+	Kbt           *BuiltinType `thrift:"Kbt,11,optional" frugal:"11,optional,BuiltinType" json:"Kbt,omitempty"`
+	Ebt           *BuiltinType `thrift:"Ebt,12,optional" frugal:"12,optional,BuiltinType" json:"Ebt,omitempty"`
+	StructIdx     *int32       `thrift:"StructIdx,13,optional" frugal:"13,optional,i32" json:"StructIdx,omitempty"`
 }
 
 func NewTypeDesc() *TypeDesc {
@@ -1231,15 +1320,6 @@ func (p *TypeDesc) GetStruct() (v *StructDesc) {
 	return p.Struct
 }
 
-var TypeDesc_StructIdx_DEFAULT int32
-
-func (p *TypeDesc) GetStructIdx() (v int32) {
-	if !p.IsSetStructIdx() {
-		return TypeDesc_StructIdx_DEFAULT
-	}
-	return *p.StructIdx
-}
-
 var TypeDesc_IsRequestBase_DEFAULT bool
 
 func (p *TypeDesc) GetIsRequestBase() (v bool) {
@@ -1247,6 +1327,33 @@ func (p *TypeDesc) GetIsRequestBase() (v bool) {
 		return TypeDesc_IsRequestBase_DEFAULT
 	}
 	return *p.IsRequestBase
+}
+
+var TypeDesc_Kbt_DEFAULT BuiltinType
+
+func (p *TypeDesc) GetKbt() (v BuiltinType) {
+	if !p.IsSetKbt() {
+		return TypeDesc_Kbt_DEFAULT
+	}
+	return *p.Kbt
+}
+
+var TypeDesc_Ebt_DEFAULT BuiltinType
+
+func (p *TypeDesc) GetEbt() (v BuiltinType) {
+	if !p.IsSetEbt() {
+		return TypeDesc_Ebt_DEFAULT
+	}
+	return *p.Ebt
+}
+
+var TypeDesc_StructIdx_DEFAULT int32
+
+func (p *TypeDesc) GetStructIdx() (v int32) {
+	if !p.IsSetStructIdx() {
+		return TypeDesc_StructIdx_DEFAULT
+	}
+	return *p.StructIdx
 }
 func (p *TypeDesc) SetName(val *string) {
 	p.Name = val
@@ -1263,21 +1370,29 @@ func (p *TypeDesc) SetElem(val *TypeDesc) {
 func (p *TypeDesc) SetStruct(val *StructDesc) {
 	p.Struct = val
 }
-func (p *TypeDesc) SetStructIdx(val *int32) {
-	p.StructIdx = val
-}
 func (p *TypeDesc) SetIsRequestBase(val *bool) {
 	p.IsRequestBase = val
 }
+func (p *TypeDesc) SetKbt(val *BuiltinType) {
+	p.Kbt = val
+}
+func (p *TypeDesc) SetEbt(val *BuiltinType) {
+	p.Ebt = val
+}
+func (p *TypeDesc) SetStructIdx(val *int32) {
+	p.StructIdx = val
+}
 
 var fieldIDToName_TypeDesc = map[int16]string{
-	1: "Name",
-	2: "Type",
-	3: "Key",
-	4: "Elem",
-	5: "Struct",
-	6: "StructIdx",
-	7: "IsRequestBase",
+	1:  "Name",
+	2:  "Type",
+	3:  "Key",
+	4:  "Elem",
+	5:  "Struct",
+	6:  "IsRequestBase",
+	11: "Kbt",
+	12: "Ebt",
+	13: "StructIdx",
 }
 
 func (p *TypeDesc) IsSetName() bool {
@@ -1300,12 +1415,20 @@ func (p *TypeDesc) IsSetStruct() bool {
 	return p.Struct != nil
 }
 
-func (p *TypeDesc) IsSetStructIdx() bool {
-	return p.StructIdx != nil
-}
-
 func (p *TypeDesc) IsSetIsRequestBase() bool {
 	return p.IsRequestBase != nil
+}
+
+func (p *TypeDesc) IsSetKbt() bool {
+	return p.Kbt != nil
+}
+
+func (p *TypeDesc) IsSetEbt() bool {
+	return p.Ebt != nil
+}
+
+func (p *TypeDesc) IsSetStructIdx() bool {
+	return p.StructIdx != nil
 }
 
 func (p *TypeDesc) Read(iprot thrift.TProtocol) (err error) {
@@ -1378,7 +1501,7 @@ func (p *TypeDesc) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 6:
-			if fieldTypeId == thrift.I32 {
+			if fieldTypeId == thrift.BOOL {
 				if err = p.ReadField6(iprot); err != nil {
 					goto ReadFieldError
 				}
@@ -1387,9 +1510,29 @@ func (p *TypeDesc) Read(iprot thrift.TProtocol) (err error) {
 					goto SkipFieldError
 				}
 			}
-		case 7:
-			if fieldTypeId == thrift.BOOL {
-				if err = p.ReadField7(iprot); err != nil {
+		case 11:
+			if fieldTypeId == thrift.I32 {
+				if err = p.ReadField11(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 12:
+			if fieldTypeId == thrift.I32 {
+				if err = p.ReadField12(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 13:
+			if fieldTypeId == thrift.I32 {
+				if err = p.ReadField13(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -1471,19 +1614,39 @@ func (p *TypeDesc) ReadField5(iprot thrift.TProtocol) error {
 }
 
 func (p *TypeDesc) ReadField6(iprot thrift.TProtocol) error {
-	if v, err := iprot.ReadI32(); err != nil {
-		return err
-	} else {
-		p.StructIdx = &v
-	}
-	return nil
-}
-
-func (p *TypeDesc) ReadField7(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBool(); err != nil {
 		return err
 	} else {
 		p.IsRequestBase = &v
+	}
+	return nil
+}
+
+func (p *TypeDesc) ReadField11(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI32(); err != nil {
+		return err
+	} else {
+		tmp := BuiltinType(v)
+		p.Kbt = &tmp
+	}
+	return nil
+}
+
+func (p *TypeDesc) ReadField12(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI32(); err != nil {
+		return err
+	} else {
+		tmp := BuiltinType(v)
+		p.Ebt = &tmp
+	}
+	return nil
+}
+
+func (p *TypeDesc) ReadField13(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadI32(); err != nil {
+		return err
+	} else {
+		p.StructIdx = &v
 	}
 	return nil
 }
@@ -1518,8 +1681,16 @@ func (p *TypeDesc) Write(oprot thrift.TProtocol) (err error) {
 			fieldId = 6
 			goto WriteFieldError
 		}
-		if err = p.writeField7(oprot); err != nil {
-			fieldId = 7
+		if err = p.writeField11(oprot); err != nil {
+			fieldId = 11
+			goto WriteFieldError
+		}
+		if err = p.writeField12(oprot); err != nil {
+			fieldId = 12
+			goto WriteFieldError
+		}
+		if err = p.writeField13(oprot); err != nil {
+			fieldId = 13
 			goto WriteFieldError
 		}
 
@@ -1637,11 +1808,11 @@ WriteFieldEndError:
 }
 
 func (p *TypeDesc) writeField6(oprot thrift.TProtocol) (err error) {
-	if p.IsSetStructIdx() {
-		if err = oprot.WriteFieldBegin("StructIdx", thrift.I32, 6); err != nil {
+	if p.IsSetIsRequestBase() {
+		if err = oprot.WriteFieldBegin("IsRequestBase", thrift.BOOL, 6); err != nil {
 			goto WriteFieldBeginError
 		}
-		if err := oprot.WriteI32(*p.StructIdx); err != nil {
+		if err := oprot.WriteBool(*p.IsRequestBase); err != nil {
 			return err
 		}
 		if err = oprot.WriteFieldEnd(); err != nil {
@@ -1655,12 +1826,12 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 6 end error: ", p), err)
 }
 
-func (p *TypeDesc) writeField7(oprot thrift.TProtocol) (err error) {
-	if p.IsSetIsRequestBase() {
-		if err = oprot.WriteFieldBegin("IsRequestBase", thrift.BOOL, 7); err != nil {
+func (p *TypeDesc) writeField11(oprot thrift.TProtocol) (err error) {
+	if p.IsSetKbt() {
+		if err = oprot.WriteFieldBegin("Kbt", thrift.I32, 11); err != nil {
 			goto WriteFieldBeginError
 		}
-		if err := oprot.WriteBool(*p.IsRequestBase); err != nil {
+		if err := oprot.WriteI32(int32(*p.Kbt)); err != nil {
 			return err
 		}
 		if err = oprot.WriteFieldEnd(); err != nil {
@@ -1669,9 +1840,47 @@ func (p *TypeDesc) writeField7(oprot thrift.TProtocol) (err error) {
 	}
 	return nil
 WriteFieldBeginError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 7 begin error: ", p), err)
+	return thrift.PrependError(fmt.Sprintf("%T write field 11 begin error: ", p), err)
 WriteFieldEndError:
-	return thrift.PrependError(fmt.Sprintf("%T write field 7 end error: ", p), err)
+	return thrift.PrependError(fmt.Sprintf("%T write field 11 end error: ", p), err)
+}
+
+func (p *TypeDesc) writeField12(oprot thrift.TProtocol) (err error) {
+	if p.IsSetEbt() {
+		if err = oprot.WriteFieldBegin("Ebt", thrift.I32, 12); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteI32(int32(*p.Ebt)); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 12 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 12 end error: ", p), err)
+}
+
+func (p *TypeDesc) writeField13(oprot thrift.TProtocol) (err error) {
+	if p.IsSetStructIdx() {
+		if err = oprot.WriteFieldBegin("StructIdx", thrift.I32, 13); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteI32(*p.StructIdx); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 13 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 13 end error: ", p), err)
 }
 
 func (p *TypeDesc) String() string {
@@ -1702,10 +1911,16 @@ func (p *TypeDesc) DeepEqual(ano *TypeDesc) bool {
 	if !p.Field5DeepEqual(ano.Struct) {
 		return false
 	}
-	if !p.Field6DeepEqual(ano.StructIdx) {
+	if !p.Field6DeepEqual(ano.IsRequestBase) {
 		return false
 	}
-	if !p.Field7DeepEqual(ano.IsRequestBase) {
+	if !p.Field11DeepEqual(ano.Kbt) {
+		return false
+	}
+	if !p.Field12DeepEqual(ano.Ebt) {
+		return false
+	}
+	if !p.Field13DeepEqual(ano.StructIdx) {
 		return false
 	}
 	return true
@@ -1756,19 +1971,7 @@ func (p *TypeDesc) Field5DeepEqual(src *StructDesc) bool {
 	}
 	return true
 }
-func (p *TypeDesc) Field6DeepEqual(src *int32) bool {
-
-	if p.StructIdx == src {
-		return true
-	} else if p.StructIdx == nil || src == nil {
-		return false
-	}
-	if *p.StructIdx != *src {
-		return false
-	}
-	return true
-}
-func (p *TypeDesc) Field7DeepEqual(src *bool) bool {
+func (p *TypeDesc) Field6DeepEqual(src *bool) bool {
 
 	if p.IsRequestBase == src {
 		return true
@@ -1776,6 +1979,42 @@ func (p *TypeDesc) Field7DeepEqual(src *bool) bool {
 		return false
 	}
 	if *p.IsRequestBase != *src {
+		return false
+	}
+	return true
+}
+func (p *TypeDesc) Field11DeepEqual(src *BuiltinType) bool {
+
+	if p.Kbt == src {
+		return true
+	} else if p.Kbt == nil || src == nil {
+		return false
+	}
+	if *p.Kbt != *src {
+		return false
+	}
+	return true
+}
+func (p *TypeDesc) Field12DeepEqual(src *BuiltinType) bool {
+
+	if p.Ebt == src {
+		return true
+	} else if p.Ebt == nil || src == nil {
+		return false
+	}
+	if *p.Ebt != *src {
+		return false
+	}
+	return true
+}
+func (p *TypeDesc) Field13DeepEqual(src *int32) bool {
+
+	if p.StructIdx == src {
+		return true
+	} else if p.StructIdx == nil || src == nil {
+		return false
+	}
+	if *p.StructIdx != *src {
 		return false
 	}
 	return true

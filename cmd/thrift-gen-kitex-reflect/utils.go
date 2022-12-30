@@ -12,6 +12,7 @@ import (
 var (
 	enumTypeName  = "i32"
 	idlTypeStruct = idl.TypePtr(idl.Type_STRUCT)
+	trueVal       = true
 )
 
 func setNonZeroValue[T comparable](dst **T, val T) {

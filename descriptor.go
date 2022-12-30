@@ -225,19 +225,15 @@ func (p *descriptorBuilder) convertTypeDesc(tDesc *idl.TypeDesc) (*descriptor.Ty
 	if tDesc == nil {
 		return nil, nil
 	}
-	keyDesc, err := p.convertTypeDesc(tDesc.Key)
+	keyDesc, err := p.convertTypeKeyDesc(tDesc)
 	if err != nil {
 		return nil, err
 	}
-	elemDesc, err := p.convertTypeDesc(tDesc.Elem)
+	elemDesc, err := p.convertTypeElemDesc(tDesc)
 	if err != nil {
 		return nil, err
 	}
-	idlStructDesc := tDesc.Struct
-	if idlStructDesc == nil && tDesc.StructIdx != nil && len(p.idlDesc.StructList) > int(*tDesc.StructIdx) {
-		idlStructDesc = p.idlDesc.StructList[*tDesc.StructIdx]
-	}
-	structDesc, err := p.convertStructDesc(idlStructDesc)
+	structDesc, err := p.convertTypeStructDesc(tDesc)
 	if err != nil {
 		return nil, err
 	}
@@ -254,6 +250,52 @@ func (p *descriptorBuilder) convertTypeDesc(tDesc *idl.TypeDesc) (*descriptor.Ty
 		IsRequestBase: tDesc.GetIsRequestBase(),
 	}
 	return desc, nil
+}
+
+// reuse builtin types
+var builtinTypes = [...]*descriptor.TypeDescriptor{
+	idl.BuiltinType_VOID:   {Name: "void", Type: descriptor.VOID, Struct: new(descriptor.StructDescriptor)},
+	idl.BuiltinType_BOOL:   {Name: "bool", Type: descriptor.BOOL},
+	idl.BuiltinType_BYTE:   {Name: "byte", Type: descriptor.BYTE},
+	idl.BuiltinType_I8:     {Name: "i8", Type: descriptor.I08},
+	idl.BuiltinType_I16:    {Name: "i16", Type: descriptor.I16},
+	idl.BuiltinType_I32:    {Name: "i32", Type: descriptor.I32},
+	idl.BuiltinType_I64:    {Name: "i64", Type: descriptor.I64},
+	idl.BuiltinType_DOUBLE: {Name: "double", Type: descriptor.DOUBLE},
+	idl.BuiltinType_STRING: {Name: "string", Type: descriptor.STRING},
+	idl.BuiltinType_BINARY: {Name: "binary", Type: descriptor.STRING},
+}
+
+func (p *descriptorBuilder) convertTypeKeyDesc(tDesc *idl.TypeDesc) (*descriptor.TypeDescriptor, error) {
+	if tDesc.Kbt != nil {
+		if i := int(*tDesc.Kbt); i > 0 && i < len(builtinTypes) {
+			return builtinTypes[i], nil
+		}
+		return nil, fmt.Errorf("unknown builtin type %v", *tDesc.Kbt)
+	}
+	return p.convertTypeDesc(tDesc.Key)
+}
+
+func (p *descriptorBuilder) convertTypeElemDesc(tDesc *idl.TypeDesc) (*descriptor.TypeDescriptor, error) {
+	if tDesc.Ebt != nil {
+		if i := int(*tDesc.Ebt); i > 0 && i < len(builtinTypes) {
+			return builtinTypes[i], nil
+		}
+		return nil, fmt.Errorf("unknown builtin type %v", *tDesc.Ebt)
+	}
+	return p.convertTypeDesc(tDesc.Elem)
+}
+
+func (p *descriptorBuilder) convertTypeStructDesc(tDesc *idl.TypeDesc) (*descriptor.StructDescriptor, error) {
+	sDesc := tDesc.Struct
+	if tDesc.StructIdx != nil {
+		if i := int(*tDesc.StructIdx); i < len(p.idlDesc.StructList) {
+			sDesc = p.idlDesc.StructList[i]
+		} else {
+			return nil, fmt.Errorf("struct idx is out of range")
+		}
+	}
+	return p.convertStructDesc(sDesc)
 }
 
 func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descriptor.StructDescriptor, error) {

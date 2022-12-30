@@ -21,6 +21,20 @@ enum Type {
     JSON   = 19
 }
 
+enum BuiltinType {
+    NOT_BUITIN = 0
+    VOID = 1
+    BOOL = 2
+    BYTE = 3
+    I8 = 4
+    I16 = 5
+    I32 = 6
+    I64 = 7
+    DOUBLE = 8
+    STRING = 9
+    BINARY = 10
+}
+
 struct Annotation {
     1: string Key
     2: list<string> Values
@@ -44,8 +58,11 @@ struct TypeDesc {
     3: optional TypeDesc Key       // for map key
     4: optional TypeDesc Elem      // for slice or map element
     5: optional StructDesc Struct  // for struct
-    6: optional i32 StructIdx      // for struct
-    7: optional bool IsRequestBase
+    6: optional bool IsRequestBase
+
+    11: optional BuiltinType Kbt   // key builtin type
+    12: optional BuiltinType Ebt   // elem builin type
+    13: optional i32 StructIdx     // struct list index
 }
 
 struct StructDesc {

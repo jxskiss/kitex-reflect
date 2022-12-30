@@ -885,7 +885,7 @@ func (p *TypeDesc) FastRead(buf []byte) (int, error) {
 				}
 			}
 		case 6:
-			if fieldTypeId == thrift.I32 {
+			if fieldTypeId == thrift.BOOL {
 				l, err = p.FastReadField6(buf[offset:])
 				offset += l
 				if err != nil {
@@ -898,9 +898,37 @@ func (p *TypeDesc) FastRead(buf []byte) (int, error) {
 					goto SkipFieldError
 				}
 			}
-		case 7:
-			if fieldTypeId == thrift.BOOL {
-				l, err = p.FastReadField7(buf[offset:])
+		case 11:
+			if fieldTypeId == thrift.I32 {
+				l, err = p.FastReadField11(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 12:
+			if fieldTypeId == thrift.I32 {
+				l, err = p.FastReadField12(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 13:
+			if fieldTypeId == thrift.I32 {
+				l, err = p.FastReadField13(buf[offset:])
 				offset += l
 				if err != nil {
 					goto ReadFieldError
@@ -1017,24 +1045,54 @@ func (p *TypeDesc) FastReadField5(buf []byte) (int, error) {
 func (p *TypeDesc) FastReadField6(buf []byte) (int, error) {
 	offset := 0
 
-	if v, l, err := bthrift.Binary.ReadI32(buf[offset:]); err != nil {
-		return offset, err
-	} else {
-		offset += l
-		p.StructIdx = &v
-
-	}
-	return offset, nil
-}
-
-func (p *TypeDesc) FastReadField7(buf []byte) (int, error) {
-	offset := 0
-
 	if v, l, err := bthrift.Binary.ReadBool(buf[offset:]); err != nil {
 		return offset, err
 	} else {
 		offset += l
 		p.IsRequestBase = &v
+
+	}
+	return offset, nil
+}
+
+func (p *TypeDesc) FastReadField11(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI32(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		tmp := BuiltinType(v)
+		p.Kbt = &tmp
+
+	}
+	return offset, nil
+}
+
+func (p *TypeDesc) FastReadField12(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI32(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		tmp := BuiltinType(v)
+		p.Ebt = &tmp
+
+	}
+	return offset, nil
+}
+
+func (p *TypeDesc) FastReadField13(buf []byte) (int, error) {
+	offset := 0
+
+	if v, l, err := bthrift.Binary.ReadI32(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+		p.StructIdx = &v
 
 	}
 	return offset, nil
@@ -1050,12 +1108,14 @@ func (p *TypeDesc) FastWriteNocopy(buf []byte, binaryWriter bthrift.BinaryWriter
 	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "TypeDesc")
 	if p != nil {
 		offset += p.fastWriteField6(buf[offset:], binaryWriter)
-		offset += p.fastWriteField7(buf[offset:], binaryWriter)
+		offset += p.fastWriteField13(buf[offset:], binaryWriter)
 		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
 		offset += p.fastWriteField3(buf[offset:], binaryWriter)
 		offset += p.fastWriteField4(buf[offset:], binaryWriter)
 		offset += p.fastWriteField5(buf[offset:], binaryWriter)
+		offset += p.fastWriteField11(buf[offset:], binaryWriter)
+		offset += p.fastWriteField12(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -1072,7 +1132,9 @@ func (p *TypeDesc) BLength() int {
 		l += p.field4Length()
 		l += p.field5Length()
 		l += p.field6Length()
-		l += p.field7Length()
+		l += p.field11Length()
+		l += p.field12Length()
+		l += p.field13Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -1133,20 +1195,42 @@ func (p *TypeDesc) fastWriteField5(buf []byte, binaryWriter bthrift.BinaryWriter
 
 func (p *TypeDesc) fastWriteField6(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	if p.IsSetStructIdx() {
-		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "StructIdx", thrift.I32, 6)
-		offset += bthrift.Binary.WriteI32(buf[offset:], *p.StructIdx)
+	if p.IsSetIsRequestBase() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "IsRequestBase", thrift.BOOL, 6)
+		offset += bthrift.Binary.WriteBool(buf[offset:], *p.IsRequestBase)
 
 		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
 	}
 	return offset
 }
 
-func (p *TypeDesc) fastWriteField7(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+func (p *TypeDesc) fastWriteField11(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	if p.IsSetIsRequestBase() {
-		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "IsRequestBase", thrift.BOOL, 7)
-		offset += bthrift.Binary.WriteBool(buf[offset:], *p.IsRequestBase)
+	if p.IsSetKbt() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "Kbt", thrift.I32, 11)
+		offset += bthrift.Binary.WriteI32(buf[offset:], int32(*p.Kbt))
+
+		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	}
+	return offset
+}
+
+func (p *TypeDesc) fastWriteField12(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	if p.IsSetEbt() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "Ebt", thrift.I32, 12)
+		offset += bthrift.Binary.WriteI32(buf[offset:], int32(*p.Ebt))
+
+		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	}
+	return offset
+}
+
+func (p *TypeDesc) fastWriteField13(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	if p.IsSetStructIdx() {
+		offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "StructIdx", thrift.I32, 13)
+		offset += bthrift.Binary.WriteI32(buf[offset:], *p.StructIdx)
 
 		offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
 	}
@@ -1207,20 +1291,42 @@ func (p *TypeDesc) field5Length() int {
 
 func (p *TypeDesc) field6Length() int {
 	l := 0
-	if p.IsSetStructIdx() {
-		l += bthrift.Binary.FieldBeginLength("StructIdx", thrift.I32, 6)
-		l += bthrift.Binary.I32Length(*p.StructIdx)
+	if p.IsSetIsRequestBase() {
+		l += bthrift.Binary.FieldBeginLength("IsRequestBase", thrift.BOOL, 6)
+		l += bthrift.Binary.BoolLength(*p.IsRequestBase)
 
 		l += bthrift.Binary.FieldEndLength()
 	}
 	return l
 }
 
-func (p *TypeDesc) field7Length() int {
+func (p *TypeDesc) field11Length() int {
 	l := 0
-	if p.IsSetIsRequestBase() {
-		l += bthrift.Binary.FieldBeginLength("IsRequestBase", thrift.BOOL, 7)
-		l += bthrift.Binary.BoolLength(*p.IsRequestBase)
+	if p.IsSetKbt() {
+		l += bthrift.Binary.FieldBeginLength("Kbt", thrift.I32, 11)
+		l += bthrift.Binary.I32Length(int32(*p.Kbt))
+
+		l += bthrift.Binary.FieldEndLength()
+	}
+	return l
+}
+
+func (p *TypeDesc) field12Length() int {
+	l := 0
+	if p.IsSetEbt() {
+		l += bthrift.Binary.FieldBeginLength("Ebt", thrift.I32, 12)
+		l += bthrift.Binary.I32Length(int32(*p.Ebt))
+
+		l += bthrift.Binary.FieldEndLength()
+	}
+	return l
+}
+
+func (p *TypeDesc) field13Length() int {
+	l := 0
+	if p.IsSetStructIdx() {
+		l += bthrift.Binary.FieldBeginLength("StructIdx", thrift.I32, 13)
+		l += bthrift.Binary.I32Length(*p.StructIdx)
 
 		l += bthrift.Binary.FieldEndLength()
 	}

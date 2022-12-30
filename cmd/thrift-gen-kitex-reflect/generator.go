@@ -277,39 +277,76 @@ func (p *pluginGenerator) buildTypeDesc(tree *parser.Thrift, typ *parser.Type, r
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert type enum: %w", err)
 	}
-	keyDesc, err := p.buildTypeDesc(tree, typ.KeyType, recurDepth+1)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get key type descriptor: %w", err)
+
+	desc := &idl.TypeDesc{
+		Name:          &typ.Name,
+		Type:          &typEnum,
+		Key:           nil,
+		Elem:          nil,
+		Struct:        nil,
+		IsRequestBase: nil,
 	}
-	elemDesc, err := p.buildTypeDesc(tree, typ.ValueType, recurDepth+1)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get elem type descriptor: %w", err)
+	if typ.Category == parser.Category_Enum {
+		desc.Name = &enumTypeName
+	}
+	if typ.KeyType != nil {
+		kbt := p.getBuiltinType(typ.KeyType)
+		if kbt != idl.BuiltinType_NOT_BUITIN {
+			desc.Kbt = &kbt
+		} else {
+			keyDesc, err := p.buildTypeDesc(tree, typ.KeyType, recurDepth+1)
+			if err != nil {
+				return nil, fmt.Errorf("cannot get key type descriptor: %w", err)
+			}
+			desc.Key = keyDesc
+		}
+	}
+	if typ.ValueType != nil {
+		ebt := p.getBuiltinType(typ.ValueType)
+		if ebt != idl.BuiltinType_NOT_BUITIN {
+			desc.Ebt = &ebt
+		} else {
+			elemDesc, err := p.buildTypeDesc(tree, typ.ValueType, recurDepth+1)
+			if err != nil {
+				return nil, fmt.Errorf("cannot get elem type descriptor: %w", err)
+			}
+			desc.Elem = elemDesc
+		}
 	}
 
 	var structIdx = -1
-	var isRequestBase bool
 	if typ.Category == parser.Category_Struct && typ.Name != "" {
 		structIdx, err = p.buildStructDesc(tree, typ.Name, recurDepth)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get struct descriptor: %w", err)
 		}
-		isRequestBase = typ.Name == "base.Base" && recurDepth == 1
+		isRequestBase := typ.Name == "base.Base" && recurDepth == 1
+		if isRequestBase {
+			desc.IsRequestBase = &trueVal
+		}
+		if structIdx >= 0 {
+			desc.StructIdx = int32p(structIdx)
+		}
 	}
-	desc := &idl.TypeDesc{
-		Name:          &typ.Name,
-		Type:          &typEnum,
-		Key:           keyDesc,
-		Elem:          elemDesc,
-		StructIdx:     nil,
-		IsRequestBase: &isRequestBase,
-	}
-	if typ.Category == parser.Category_Enum {
-		desc.Name = &enumTypeName
-	}
-	if structIdx >= 0 {
-		desc.StructIdx = int32p(structIdx)
-	}
+
 	return desc, nil
+}
+
+var builtinTypeTable = map[string]idl.BuiltinType{
+	"void":   idl.BuiltinType_VOID,
+	"bool":   idl.BuiltinType_BOOL,
+	"byte":   idl.BuiltinType_BYTE,
+	"i8":     idl.BuiltinType_I8,
+	"i16":    idl.BuiltinType_I16,
+	"i32":    idl.BuiltinType_I32,
+	"i64":    idl.BuiltinType_I64,
+	"double": idl.BuiltinType_DOUBLE,
+	"string": idl.BuiltinType_STRING,
+	"binary": idl.BuiltinType_BINARY,
+}
+
+func (p *pluginGenerator) getBuiltinType(typ *parser.Type) idl.BuiltinType {
+	return builtinTypeTable[typ.Name]
 }
 
 func (p *pluginGenerator) convAnnotations(annotations parser.Annotations) []*idl.Annotation {
