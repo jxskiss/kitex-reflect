@@ -75,26 +75,23 @@ type ProviderImpl struct {
 	updating     int64
 
 	closeMu sync.Mutex
-	closed  bool
+	closed  int64
 	updates chan *descriptor.ServiceDescriptor
 }
 
 // Close closes the provider and the channel returned by Provide.
 func (p *ProviderImpl) Close() error {
 	p.closeMu.Lock()
-	if !p.closed {
-		p.closed = true
+	if atomic.CompareAndSwapInt64(&p.closed, 0, 1) {
 		close(p.updates)
 	}
 	p.closeMu.Unlock()
 	return nil
 }
 
-func (p *ProviderImpl) isClosed() (ret bool) {
-	p.closeMu.Lock()
-	ret = p.closed
-	p.closeMu.Unlock()
-	return
+// IsClosed checks whether the provider has been closed.
+func (p *ProviderImpl) IsClosed() bool {
+	return atomic.LoadInt64(&p.closed) > 0
 }
 
 // Provide returns a channel for service descriptors.
@@ -106,7 +103,7 @@ func (p *ProviderImpl) Provide() <-chan *descriptor.ServiceDescriptor {
 // The actual rpc requests will be debounced according to DebounceInterval.
 // This method is safe to call concurrently.
 func (p *ProviderImpl) Update(ctx context.Context) {
-	if p.isClosed() {
+	if p.IsClosed() {
 		return
 	}
 	preUpdateTime := time.Unix(atomic.LoadInt64(&p.preUpdateSec), 0)
@@ -138,7 +135,7 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 
 	p.closeMu.Lock()
 	defer p.closeMu.Unlock()
-	if p.closed {
+	if p.IsClosed() {
 		return
 	}
 	select {
