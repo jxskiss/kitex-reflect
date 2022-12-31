@@ -102,7 +102,7 @@ func (p *ReflectServiceReqPayload) FastReadField1(buf []byte) (int, error) {
 	} else {
 		offset += l
 
-		p.ClientIDLVersion = v
+		p.ExistingIDLVersion = v
 
 	}
 	return offset, nil
@@ -137,8 +137,8 @@ func (p *ReflectServiceReqPayload) BLength() int {
 
 func (p *ReflectServiceReqPayload) fastWriteField1(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "ClientIDLVersion", thrift.STRING, 1)
-	offset += bthrift.Binary.WriteStringNocopy(buf[offset:], binaryWriter, p.ClientIDLVersion)
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "ExistingIDLVersion", thrift.STRING, 1)
+	offset += bthrift.Binary.WriteStringNocopy(buf[offset:], binaryWriter, p.ExistingIDLVersion)
 
 	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
 	return offset
@@ -146,8 +146,8 @@ func (p *ReflectServiceReqPayload) fastWriteField1(buf []byte, binaryWriter bthr
 
 func (p *ReflectServiceReqPayload) field1Length() int {
 	l := 0
-	l += bthrift.Binary.FieldBeginLength("ClientIDLVersion", thrift.STRING, 1)
-	l += bthrift.Binary.StringLengthNocopy(p.ClientIDLVersion)
+	l += bthrift.Binary.FieldBeginLength("ExistingIDLVersion", thrift.STRING, 1)
+	l += bthrift.Binary.StringLengthNocopy(p.ExistingIDLVersion)
 
 	l += bthrift.Binary.FieldEndLength()
 	return l

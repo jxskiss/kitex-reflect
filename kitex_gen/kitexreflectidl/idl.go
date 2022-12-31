@@ -11,7 +11,7 @@ import (
 )
 
 type ReflectServiceReqPayload struct {
-	ClientIDLVersion string `thrift:"ClientIDLVersion,1" frugal:"1,default,string" json:"ClientIDLVersion"`
+	ExistingIDLVersion string `thrift:"ExistingIDLVersion,1" frugal:"1,default,string" json:"ExistingIDLVersion"`
 }
 
 func NewReflectServiceReqPayload() *ReflectServiceReqPayload {
@@ -22,15 +22,15 @@ func (p *ReflectServiceReqPayload) InitDefault() {
 	*p = ReflectServiceReqPayload{}
 }
 
-func (p *ReflectServiceReqPayload) GetClientIDLVersion() (v string) {
-	return p.ClientIDLVersion
+func (p *ReflectServiceReqPayload) GetExistingIDLVersion() (v string) {
+	return p.ExistingIDLVersion
 }
-func (p *ReflectServiceReqPayload) SetClientIDLVersion(val string) {
-	p.ClientIDLVersion = val
+func (p *ReflectServiceReqPayload) SetExistingIDLVersion(val string) {
+	p.ExistingIDLVersion = val
 }
 
 var fieldIDToName_ReflectServiceReqPayload = map[int16]string{
-	1: "ClientIDLVersion",
+	1: "ExistingIDLVersion",
 }
 
 func (p *ReflectServiceReqPayload) Read(iprot thrift.TProtocol) (err error) {
@@ -96,7 +96,7 @@ func (p *ReflectServiceReqPayload) ReadField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadString(); err != nil {
 		return err
 	} else {
-		p.ClientIDLVersion = v
+		p.ExistingIDLVersion = v
 	}
 	return nil
 }
@@ -131,10 +131,10 @@ WriteStructEndError:
 }
 
 func (p *ReflectServiceReqPayload) writeField1(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("ClientIDLVersion", thrift.STRING, 1); err != nil {
+	if err = oprot.WriteFieldBegin("ExistingIDLVersion", thrift.STRING, 1); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteString(p.ClientIDLVersion); err != nil {
+	if err := oprot.WriteString(p.ExistingIDLVersion); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -160,7 +160,7 @@ func (p *ReflectServiceReqPayload) DeepEqual(ano *ReflectServiceReqPayload) bool
 	} else if p == nil || ano == nil {
 		return false
 	}
-	if !p.Field1DeepEqual(ano.ClientIDLVersion) {
+	if !p.Field1DeepEqual(ano.ExistingIDLVersion) {
 		return false
 	}
 	return true
@@ -168,7 +168,7 @@ func (p *ReflectServiceReqPayload) DeepEqual(ano *ReflectServiceReqPayload) bool
 
 func (p *ReflectServiceReqPayload) Field1DeepEqual(src string) bool {
 
-	if strings.Compare(p.ClientIDLVersion, src) != 0 {
+	if strings.Compare(p.ExistingIDLVersion, src) != 0 {
 		return false
 	}
 	return true

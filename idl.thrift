@@ -1,7 +1,7 @@
 namespace go kitexreflectidl
 
 struct ReflectServiceReqPayload {
-    1: string ClientIDLVersion
+    1: string ExistingIDLVersion
 }
 
 struct ReflectServiceRespPayload {
