@@ -53,8 +53,8 @@ func ServeReflectServiceRequest(ctx context.Context, req interface{}, resp inter
 		return fmt.Errorf("cannot unmarshal ReflectServiceReqPayload: %w", err)
 	}
 	var reqVersionTime = ""
-	if len(reqPayload.ClientIDLVersion) > 14 {
-		reqVersionTime = reqPayload.ClientIDLVersion[:14]
+	if len(reqPayload.ExistingIDLVersion) > 14 {
+		reqVersionTime = reqPayload.ExistingIDLVersion[:14]
 	}
 
 	respPayload := &idl.ReflectServiceRespPayload{

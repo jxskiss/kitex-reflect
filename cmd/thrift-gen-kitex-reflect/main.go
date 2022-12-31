@@ -77,7 +77,7 @@ func main() {
 		os.Exit(1)
 	}
 	code := buf.Bytes()
-	code, err = format.Source(buf.Bytes())
+	code, err = format.Source(code)
 	if err != nil {
 		println("Failed to format generated code:", err.Error())
 		os.Exit(1)

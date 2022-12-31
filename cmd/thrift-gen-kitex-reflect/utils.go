@@ -10,11 +10,13 @@ func debugln(fn func()) {
 	}
 }
 
+//nolint:unused
 func int32p(x int) *int32 {
 	ret := int32(x)
 	return &ret
 }
 
+//nolint:unused
 func setNonZeroValue[T comparable](dst **T, val T) {
 	var zero T
 	if val != zero {

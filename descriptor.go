@@ -168,9 +168,9 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 	p.version = payload.Version
 }
 
-func newReflectServiceRequest(clientIDLVersion string) *ReflectServiceRequest {
+func newReflectServiceRequest(existingIDLVersion string) *ReflectServiceRequest {
 	payload := &idl.ReflectServiceReqPayload{
-		ClientIDLVersion: clientIDLVersion,
+		ExistingIDLVersion: existingIDLVersion,
 	}
 	payloadBuf, _ := idl.MarshalReflectServiceReqPayload(payload)
 	return &idl.ReflectServiceRequest{
@@ -180,6 +180,9 @@ func newReflectServiceRequest(clientIDLVersion string) *ReflectServiceRequest {
 
 // BuildServiceDescriptor builds a [descriptor.ServiceDescriptor] from a ReflectServiceResponse.
 func BuildServiceDescriptor(idlBytes []byte) (*descriptor.ServiceDescriptor, error) {
+	if len(idlBytes) == 0 {
+		return nil, fmt.Errorf("IDL bytes is empty")
+	}
 	builder := &descriptorBuilder{
 		idlBytes: idlBytes,
 	}
