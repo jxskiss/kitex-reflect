@@ -3,14 +3,14 @@ module github.com/jxskiss/kitex-reflect
 go 1.18
 
 require (
+	github.com/apache/thrift v0.13.0
 	github.com/cloudwego/kitex v0.4.4
 	github.com/cloudwego/thriftgo v0.2.4
-	github.com/jxskiss/kitex-reflect/kitex_gen v0.2.0
+	github.com/jxskiss/kitex-reflect/kitex_gen v0.3.0
 	github.com/stretchr/testify v1.8.1
 )
 
 require (
-	github.com/apache/thrift v0.13.0 // indirect
 	github.com/bytedance/gopkg v0.0.0-20220817015305-b879a72dc90f // indirect
 	github.com/chenzhuoyu/iasm v0.0.0-20220818063314-28c361dae733 // indirect
 	github.com/choleraehyq/pid v0.0.15 // indirect
