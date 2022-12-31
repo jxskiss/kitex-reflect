@@ -38,7 +38,7 @@ func NewServiceInfo() *kitex.ServiceInfo {
 func reflectServiceHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
 	realArg := arg.(*kitexreflectidl.ReflectionServiceReflectServiceArgs)
 	realResult := result.(*kitexreflectidl.ReflectionServiceReflectServiceResult)
-	success, err := handler.(kitexreflectidl.ReflectionService).ReflectService(ctx, realArg.Req)
+	success, err := handler.(kitexreflectidl.ReflectionService).ReflectService(ctx, realArg.Request)
 	if err != nil {
 		return err
 	}
@@ -63,9 +63,9 @@ func newServiceClient(c client.Client) *kClient {
 	}
 }
 
-func (p *kClient) ReflectService(ctx context.Context, req *kitexreflectidl.ReflectServiceRequest) (r *kitexreflectidl.ReflectServiceResponse, err error) {
+func (p *kClient) ReflectService(ctx context.Context, request *kitexreflectidl.ReflectServiceRequest) (r *kitexreflectidl.ReflectServiceResponse, err error) {
 	var _args kitexreflectidl.ReflectionServiceReflectServiceArgs
-	_args.Req = req
+	_args.Request = request
 	var _result kitexreflectidl.ReflectionServiceReflectServiceResult
 	if err = p.c.Call(ctx, "ReflectService", &_args, &_result); err != nil {
 		return

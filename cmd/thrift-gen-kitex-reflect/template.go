@@ -6,7 +6,6 @@ package {{ .PkgName }}
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -17,74 +16,69 @@ import (
 var pluginReflectImpl = struct {
 	genTime string
 
-	checkReqAndRespOnce sync.Once
-
-	payloadOnce sync.Once
-	err         error
-	payload     []byte
+	once    sync.Once
+	err     error
+	version string
 }{
 	genTime: "{{ .GenTime }}",
 }
 
 func ServeReflectServiceRequest(ctx context.Context, req interface{}, resp interface{}) error {
-	pluginReflectImpl.checkReqAndRespOnce.Do(func() {
+	impl := &pluginReflectImpl
+	impl.once.Do(func() {
 		err := idl.CheckReflectReqAndRespType(req, resp)
 		if err != nil {
-			pluginReflectImpl.err = err
+			impl.err = err
+			return
 		}
-	})
-	if err := pluginReflectImpl.err; err != nil {
-		return err
-	}
-	payload, err := GetReflectServiceRespPayload(ctx)
-	if err != nil {
-		return err
-	}
-	resp.(interface {
-		SetPayload(val []byte)
-	}).SetPayload(payload)
-	return nil
-}
-
-func GetReflectServiceRespPayload(ctx context.Context) ([]byte, error) {
-	pluginReflectImpl.payloadOnce.Do(func() {
-		err := buildPluginReflectRespPayload()
-		if err != nil {
-			pluginReflectImpl.err = err
-		}
-	})
-	if err := pluginReflectImpl.err; err != nil {
-		return nil, err
-	}
-	return pluginReflectImpl.payload, nil
-}
-
-func buildPluginReflectRespPayload() error {
-	vcsRev := "unknown"
-	buildInfo, ok := debug.ReadBuildInfo()
-	if ok {
-		for _, setting := range buildInfo.Settings {
-			if setting.Key == "vcs.revision" && setting.Value != "" {
-				vcsRev = setting.Value
+		vcsRev := "unknown"
+		buildInfo, ok := debug.ReadBuildInfo()
+		if ok {
+			for _, setting := range buildInfo.Settings {
+				if setting.Key == "vcs.revision" && setting.Value != "" {
+					vcsRev = setting.Value
+				}
 			}
 		}
-	}
-	version := fmt.Sprintf("%s/%s", pluginReflectImpl.genTime, vcsRev)
-	payload := &idl.ReflectServiceRespPayload{
-		Version:     version,
-		ServiceDesc: &idl.ServiceDesc{},
+		impl.version = fmt.Sprintf("%s/%s", impl.genTime, vcsRev)
+	})
+	if err := impl.err; err != nil {
+		return err
 	}
 
-	svcDescJSON := {{ .GenServiceDesc }}
-	err := json.Unmarshal([]byte(svcDescJSON), payload.ServiceDesc)
+	reqPayload, err := idl.UnmarshalReflectServiceReqPayload(req.(interface {
+		GetPayload() []byte
+	}).GetPayload())
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal service descriptor: %w", err)
+		return fmt.Errorf("cannot unmarshal ReflectServiceReqPayload: %w", err)
+	}
+	var reqVersionTime = ""
+	if len(reqPayload.ClientIDLVersion) > 14 {
+		reqVersionTime = reqPayload.ClientIDLVersion[:14]
 	}
 
-	pluginReflectImpl.payload, err = idl.MarshalReflectServiceRespPayload(payload)
+	respPayload := &idl.ReflectServiceRespPayload{
+		Version: impl.version,
+		IDL:     nil,
+	}
+	if reqVersionTime != impl.genTime {
+		respPayload.IDL = pluginReflectIDLRaw
+	}
+	payloadBuf, err := idl.MarshalReflectServiceRespPayload(respPayload)
 	if err != nil {
 		return fmt.Errorf("cannot marshal ReflectServiceRespPayload: %w", err)
 	}
+	resp.(interface {
+		SetPayload(val []byte)
+	}).SetPayload(payloadBuf)
 	return nil
+}
+
+func GetIDLGzipBytes() []byte {
+	return pluginReflectIDLRaw
+}
+
+var pluginReflectIDLRaw = []byte{
+{{ .IDLBytes }}
 }
 `

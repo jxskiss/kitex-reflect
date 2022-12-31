@@ -11,7 +11,7 @@ import (
 
 // Client is designed to provide IDL-compatible methods with call-option parameter for kitex framework.
 type Client interface {
-	ReflectService(ctx context.Context, req *kitexreflectidl.ReflectServiceRequest, callOptions ...callopt.Option) (r *kitexreflectidl.ReflectServiceResponse, err error)
+	ReflectService(ctx context.Context, request *kitexreflectidl.ReflectServiceRequest, callOptions ...callopt.Option) (r *kitexreflectidl.ReflectServiceResponse, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -43,7 +43,7 @@ type kReflectionServiceClient struct {
 	*kClient
 }
 
-func (p *kReflectionServiceClient) ReflectService(ctx context.Context, req *kitexreflectidl.ReflectServiceRequest, callOptions ...callopt.Option) (r *kitexreflectidl.ReflectServiceResponse, err error) {
+func (p *kReflectionServiceClient) ReflectService(ctx context.Context, request *kitexreflectidl.ReflectServiceRequest, callOptions ...callopt.Option) (r *kitexreflectidl.ReflectServiceResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.ReflectService(ctx, req)
+	return p.kClient.ReflectService(ctx, request)
 }

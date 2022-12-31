@@ -1,12 +1,12 @@
 package kitexreflect
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"log"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +14,9 @@ import (
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/generic"
 	"github.com/cloudwego/kitex/pkg/generic/descriptor"
+	"github.com/cloudwego/kitex/pkg/generic/thrift"
+	"github.com/cloudwego/thriftgo/generator/golang/extension/meta"
+	"github.com/cloudwego/thriftgo/parser"
 
 	idl "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl"
 	svc "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl/reflectionservice"
@@ -31,11 +34,16 @@ func NewDescriptorProvider(ctx context.Context, serviceName string, opts ...clie
 	if err != nil {
 		return nil, err
 	}
-	firstResp, err := cli.ReflectService(ctx, newReflectServiceRequest())
+	firstReq := newReflectServiceRequest("")
+	firstResp, err := cli.ReflectService(ctx, firstReq)
 	if err != nil {
 		return nil, err
 	}
-	desc, err := BuildServiceDescriptor(ctx, firstResp)
+	respPayload, err := idl.UnmarshalReflectServiceRespPayload(firstResp.Payload)
+	if err != nil {
+		return nil, err
+	}
+	desc, err := BuildServiceDescriptor(respPayload.IDL)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +54,7 @@ func NewDescriptorProvider(ctx context.Context, serviceName string, opts ...clie
 		cli:              cli,
 		serviceName:      serviceName,
 		updates:          make(chan *descriptor.ServiceDescriptor, 1),
+		version:          respPayload.Version,
 	}
 	impl.updates <- desc
 	return impl, nil
@@ -77,6 +86,7 @@ type ProviderImpl struct {
 	closeMu sync.Mutex
 	closed  int64
 	updates chan *descriptor.ServiceDescriptor
+	version string
 }
 
 // Close closes the provider and the channel returned by Provide.
@@ -120,13 +130,25 @@ func (p *ProviderImpl) Update(ctx context.Context) {
 func (p *ProviderImpl) doUpdate(ctx context.Context) {
 	defer atomic.StoreInt64(&p.updating, 0)
 
-	resp, err := p.cli.ReflectService(ctx, newReflectServiceRequest())
+	req := newReflectServiceRequest(p.version)
+	resp, err := p.cli.ReflectService(ctx, req)
 	if err != nil {
 		msg := fmt.Sprintf("failed to call %s.ReflectService", p.serviceName)
 		p.ErrorHandler(err, msg)
 		return
 	}
-	desc, err := BuildServiceDescriptor(ctx, resp)
+	payload, err := idl.UnmarshalReflectServiceRespPayload(resp.Payload)
+	if err != nil {
+		msg := fmt.Sprintf("failed to unmarshal response payload: %v", err)
+		p.ErrorHandler(err, msg)
+		return
+	}
+	if payload.Version == "" || payload.Version == p.version {
+		// The IDL is not changed.
+		return
+	}
+
+	desc, err := BuildServiceDescriptor(payload.IDL)
 	if err != nil {
 		msg := fmt.Sprintf("failed to build descriptor for service %s", p.serviceName)
 		p.ErrorHandler(err, msg)
@@ -143,316 +165,47 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 	default:
 	}
 	p.updates <- desc
+	p.version = payload.Version
 }
 
-func newReflectServiceRequest() *ReflectServiceRequest {
-	return &ReflectServiceRequest{}
+func newReflectServiceRequest(clientIDLVersion string) *ReflectServiceRequest {
+	payload := &idl.ReflectServiceReqPayload{
+		ClientIDLVersion: clientIDLVersion,
+	}
+	payloadBuf, _ := idl.MarshalReflectServiceReqPayload(payload)
+	return &idl.ReflectServiceRequest{
+		Payload: payloadBuf,
+	}
 }
 
 // BuildServiceDescriptor builds a [descriptor.ServiceDescriptor] from a ReflectServiceResponse.
-func BuildServiceDescriptor(_ context.Context, resp *ReflectServiceResponse) (*descriptor.ServiceDescriptor, error) {
+func BuildServiceDescriptor(idlBytes []byte) (*descriptor.ServiceDescriptor, error) {
 	builder := &descriptorBuilder{
-		resp: resp,
-		desc: &descriptor.ServiceDescriptor{},
+		idlBytes: idlBytes,
 	}
 	return builder.Build()
 }
 
 type descriptorBuilder struct {
-	resp *ReflectServiceResponse
-	desc *descriptor.ServiceDescriptor
-
-	idlDesc *idl.ServiceDesc
-
-	structCache map[string]*descriptor.StructDescriptor
+	idlBytes []byte
 }
 
 func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
-	payload, err := idl.UnmarshalReflectServiceRespPayload(p.resp.Payload)
+	gzr, _ := gzip.NewReader(bytes.NewBuffer(p.idlBytes))
+	rawBuf, err := io.ReadAll(gzr)
 	if err != nil {
-		return nil, err
-	}
-	tDesc := payload.GetServiceDesc()
-	if tDesc == nil {
-		return nil, errors.New("service descriptor not available")
+		return nil, fmt.Errorf("cannot decompress IDL bytes: %w", err)
 	}
 
-	p.idlDesc = tDesc
-	p.structCache = make(map[string]*descriptor.StructDescriptor, len(tDesc.Functions)*4)
-	p.desc.Name = tDesc.Name
-	p.desc.Functions = make(map[string]*descriptor.FunctionDescriptor, len(tDesc.Functions))
-	p.desc.Router = descriptor.NewRouter()
-	for _, tFuncDesc := range tDesc.Functions {
-		fDesc, err := p.convertFunctionDesc(tFuncDesc)
-		if err != nil {
-			return nil, err
-		}
-		p.desc.Functions[fDesc.Name] = fDesc
-		for _, ann := range tFuncDesc.Annotations {
-			for _, v := range ann.GetValues() {
-				if handle, ok := descriptor.FindAnnotation(ann.GetKey(), v); ok {
-					if nr, ok := handle.(descriptor.NewRoute); ok {
-						p.desc.Router.Handle(nr(v, fDesc))
-						break
-					}
-				}
-			}
-		}
+	ast := &parser.Thrift{}
+	err = meta.Unmarshal(rawBuf, ast)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal parser.Thrift: %w", err)
 	}
-	return p.desc, nil
-}
 
-func (p *descriptorBuilder) convertFunctionDesc(tDesc *idl.FunctionDesc) (*descriptor.FunctionDescriptor, error) {
-	reqDesc, err := p.convertTypeDesc(tDesc.Request)
+	desc, err := thrift.Parse(ast, thrift.DefaultParseMode())
 	if err != nil {
-		return nil, err
-	}
-	rspDesc, err := p.convertTypeDesc(tDesc.Response)
-	if err != nil {
-		return nil, err
-	}
-	desc := &descriptor.FunctionDescriptor{
-		Name:           tDesc.GetName(),
-		Oneway:         tDesc.GetOneway(),
-		Request:        reqDesc,
-		Response:       rspDesc,
-		HasRequestBase: tDesc.GetHasRequestBase(),
+		return nil, fmt.Errorf("cannot parse thirft IDL: %w", err)
 	}
 	return desc, nil
-}
-
-func (p *descriptorBuilder) convertTypeDesc(tDesc *idl.TypeDesc) (*descriptor.TypeDescriptor, error) {
-	if tDesc == nil {
-		return nil, nil
-	}
-	keyDesc, err := p.convertTypeKeyDesc(tDesc)
-	if err != nil {
-		return nil, err
-	}
-	elemDesc, err := p.convertTypeElemDesc(tDesc)
-	if err != nil {
-		return nil, err
-	}
-	structDesc, err := p.convertTypeStructDesc(tDesc)
-	if err != nil {
-		return nil, err
-	}
-	typEnum, err := p.convertTypeEnum(tDesc.GetType())
-	if err != nil {
-		return nil, err
-	}
-	desc := &descriptor.TypeDescriptor{
-		Name:          tDesc.GetName(),
-		Type:          typEnum,
-		Key:           keyDesc,
-		Elem:          elemDesc,
-		Struct:        structDesc,
-		IsRequestBase: tDesc.GetIsRequestBase(),
-	}
-	return desc, nil
-}
-
-// reuse builtin types
-var builtinTypes = [...]*descriptor.TypeDescriptor{
-	idl.BuiltinType_VOID:   {Name: "void", Type: descriptor.VOID, Struct: new(descriptor.StructDescriptor)},
-	idl.BuiltinType_BOOL:   {Name: "bool", Type: descriptor.BOOL},
-	idl.BuiltinType_BYTE:   {Name: "byte", Type: descriptor.BYTE},
-	idl.BuiltinType_I8:     {Name: "i8", Type: descriptor.I08},
-	idl.BuiltinType_I16:    {Name: "i16", Type: descriptor.I16},
-	idl.BuiltinType_I32:    {Name: "i32", Type: descriptor.I32},
-	idl.BuiltinType_I64:    {Name: "i64", Type: descriptor.I64},
-	idl.BuiltinType_DOUBLE: {Name: "double", Type: descriptor.DOUBLE},
-	idl.BuiltinType_STRING: {Name: "string", Type: descriptor.STRING},
-	idl.BuiltinType_BINARY: {Name: "binary", Type: descriptor.STRING},
-}
-
-func (p *descriptorBuilder) convertTypeKeyDesc(tDesc *idl.TypeDesc) (*descriptor.TypeDescriptor, error) {
-	if tDesc.Kbt != nil {
-		if i := int(*tDesc.Kbt); i > 0 && i < len(builtinTypes) {
-			return builtinTypes[i], nil
-		}
-		return nil, fmt.Errorf("unknown builtin type %v", *tDesc.Kbt)
-	}
-	return p.convertTypeDesc(tDesc.Key)
-}
-
-func (p *descriptorBuilder) convertTypeElemDesc(tDesc *idl.TypeDesc) (*descriptor.TypeDescriptor, error) {
-	if tDesc.Ebt != nil {
-		if i := int(*tDesc.Ebt); i > 0 && i < len(builtinTypes) {
-			return builtinTypes[i], nil
-		}
-		return nil, fmt.Errorf("unknown builtin type %v", *tDesc.Ebt)
-	}
-	return p.convertTypeDesc(tDesc.Elem)
-}
-
-func (p *descriptorBuilder) convertTypeStructDesc(tDesc *idl.TypeDesc) (*descriptor.StructDescriptor, error) {
-	sDesc := tDesc.Struct
-	if tDesc.StructIdx != nil {
-		if i := int(*tDesc.StructIdx); i < len(p.idlDesc.StructList) {
-			sDesc = p.idlDesc.StructList[i]
-		} else {
-			return nil, fmt.Errorf("struct idx is out of range")
-		}
-	}
-	return p.convertStructDesc(sDesc)
-}
-
-func (p *descriptorBuilder) convertStructDesc(tDesc *idl.StructDesc) (*descriptor.StructDescriptor, error) {
-	if tDesc == nil {
-		return nil, nil
-	}
-
-	uk := tDesc.GetUniqueKey()
-	if uk != "" {
-		if desc := p.structCache[uk]; desc != nil {
-			return desc, nil
-		}
-	}
-
-	desc := &descriptor.StructDescriptor{
-		Name:           tDesc.GetName(),
-		FieldsByID:     make(map[int32]*descriptor.FieldDescriptor, len(tDesc.Fields)),
-		FieldsByName:   make(map[string]*descriptor.FieldDescriptor, len(tDesc.Fields)),
-		RequiredFields: make(map[int32]*descriptor.FieldDescriptor),
-		DefaultFields:  make(map[string]*descriptor.FieldDescriptor),
-	}
-
-	// We need to add the struct descriptor to cache before fully converting
-	// it to avoid stack overflow when processing recursive types.
-	if uk != "" {
-		p.structCache[uk] = desc
-	}
-
-	for _, fDesc := range tDesc.Fields {
-		_f, err := p.convertFieldDesc(tDesc.GetName(), fDesc)
-		if err != nil {
-			return nil, err
-		}
-		desc.FieldsByID[_f.ID] = _f
-		desc.FieldsByName[_f.FieldName()] = _f
-		if _f.Required {
-			desc.RequiredFields[_f.ID] = _f
-		}
-		if _f.DefaultValue != nil {
-			desc.DefaultFields[_f.Name] = _f
-		}
-	}
-	return desc, nil
-}
-
-func (p *descriptorBuilder) convertFieldDesc(structName string, tDesc *idl.FieldDesc) (*descriptor.FieldDescriptor, error) {
-	typDesc, err := p.convertTypeDesc(tDesc.Type)
-	if err != nil {
-		return nil, err
-	}
-	desc := &descriptor.FieldDescriptor{
-		Name:         tDesc.GetName(),
-		Alias:        tDesc.GetAlias(),
-		ID:           tDesc.GetID(),
-		Required:     tDesc.GetRequired(),
-		Optional:     tDesc.GetOptional(),
-		DefaultValue: nil,
-		IsException:  tDesc.GetIsException(),
-		Type:         typDesc,
-		HTTPMapping:  nil,
-		ValueMapping: nil,
-	}
-
-	// Default value.
-	if tDesc.DefaultValue != nil {
-		desc.DefaultValue, err = p.parseDefaultValue(tDesc)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Mapping.
-	for _, ann := range tDesc.Annotations {
-		for _, v := range ann.Values {
-			if handle, ok := descriptor.FindAnnotation(ann.GetKey(), v); ok {
-				switch h := handle.(type) {
-				case descriptor.NewHTTPMapping:
-					desc.HTTPMapping = h(v)
-				case descriptor.NewValueMapping:
-					desc.ValueMapping = h(v)
-				case descriptor.NewFieldMapping:
-					// execute at compile time
-					h(v).Handle(desc)
-				case nil:
-					// none annotation
-				default:
-					// not supported annotation type
-					return nil, fmt.Errorf("not supported handle type: %T", handle)
-				}
-			}
-		}
-	}
-	if desc.HTTPMapping == nil && structName != "" && desc.FieldName() != "" {
-		desc.HTTPMapping = descriptor.DefaultNewMapping(desc.FieldName())
-	}
-
-	return desc, nil
-}
-
-var typeEnumTable = [...]descriptor.Type{
-	idl.Type_BOOL:   descriptor.BOOL,
-	idl.Type_BYTE:   descriptor.BYTE,
-	idl.Type_DOUBLE: descriptor.DOUBLE,
-	idl.Type_I16:    descriptor.I16,
-	idl.Type_I32:    descriptor.I32,
-	idl.Type_I64:    descriptor.I64,
-	idl.Type_STRING: descriptor.STRING,
-	idl.Type_STRUCT: descriptor.STRUCT,
-	idl.Type_MAP:    descriptor.MAP,
-	idl.Type_SET:    descriptor.SET,
-	idl.Type_LIST:   descriptor.LIST,
-	idl.Type_UTF8:   descriptor.UTF8,
-	idl.Type_UTF16:  descriptor.UTF16,
-	idl.Type_JSON:   descriptor.JSON,
-}
-
-func (p *descriptorBuilder) convertTypeEnum(tTyp idl.Type) (descriptor.Type, error) {
-	var ret descriptor.Type
-	if int(tTyp) < len(typeEnumTable) {
-		ret = typeEnumTable[tTyp]
-	}
-	if ret > 0 {
-		return ret, nil
-	}
-	return 0, fmt.Errorf("not supported type enum: %d", tTyp)
-}
-
-func (p *descriptorBuilder) parseDefaultValue(field *idl.FieldDesc) (interface{}, error) {
-	var out interface{}
-	str := *field.DefaultValue
-	switch *field.Type.Type {
-	case idl.Type_BOOL:
-		out = new(bool)
-	case idl.Type_DOUBLE:
-		out = new(float64)
-	case idl.Type_I16:
-		out = new(int16)
-	case idl.Type_I32, idl.Type_I64:
-		out = new(int64)
-	case idl.Type_STRING:
-		out = new(string)
-	case idl.Type_BYTE,
-		idl.Type_STRUCT,
-		idl.Type_MAP,
-		idl.Type_SET,
-		idl.Type_LIST,
-		idl.Type_UTF8,
-		idl.Type_UTF16,
-		idl.Type_JSON:
-		return nil, fmt.Errorf("not supported default value for type %v", field.Type.Type)
-	default:
-		return nil, fmt.Errorf("not supported field type: %v", field.Type.Type)
-	}
-	err := json.Unmarshal([]byte(str), out)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse default value: %w", err)
-	}
-	out = reflect.Indirect(reflect.ValueOf(out)).Interface()
-	return out, nil
 }

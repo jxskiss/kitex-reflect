@@ -1,7 +1,6 @@
 package kitexreflect
 
 import (
-	"context"
 	"testing"
 
 	"github.com/cloudwego/kitex/pkg/generic"
@@ -15,13 +14,8 @@ func TestDiffComparator(t *testing.T) {
 	assert.Nil(t, err)
 	kitexDesc := <-kitexProv.Provide()
 
-	ctx := context.Background()
-	payload, err := reflectionservice.GetReflectServiceRespPayload(ctx)
-	assert.Nil(t, err)
-
-	reflectResp := &ReflectServiceResponse{}
-	reflectResp.SetPayload(payload)
-	pluginDesc, err := BuildServiceDescriptor(ctx, reflectResp)
+	idlBytes := reflectionservice.GetIDLGzipBytes()
+	pluginDesc, err := BuildServiceDescriptor(idlBytes)
 	assert.Nil(t, err)
 
 	diff := NewDiffComparator(kitexDesc, pluginDesc)
