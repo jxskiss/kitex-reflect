@@ -3,8 +3,10 @@ package kitexreflectidl
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/apache/thrift/lib/go/thrift"
 )
@@ -94,4 +96,54 @@ func CheckReflectReqAndRespType(req interface{}, resp interface{}) error {
 	}
 
 	return nil
+}
+
+type PluginImpl struct {
+	Version string
+
+	once sync.Once
+	err  error
+}
+
+func (p *PluginImpl) ServeRequest(ctx context.Context, req interface{}, resp interface{}, idlBytes []byte) error {
+	p.once.Do(func() {
+		err := CheckReflectReqAndRespType(req, resp)
+		if err != nil {
+			p.err = err
+			return
+		}
+	})
+	if p.err != nil {
+		return p.err
+	}
+
+	reqPayload, err := UnmarshalReflectServiceReqPayload(req.(interface {
+		GetPayload() []byte
+	}).GetPayload())
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal ReflectServiceReqPayload: %w", err)
+	}
+
+	respPayload := &ReflectServiceRespPayload{
+		Version: p.Version,
+		IDL:     nil,
+	}
+	if reqPayload.ExistingIDLVersion != p.Version {
+		respPayload.IDL = idlBytes
+	}
+	payloadBuf, err := MarshalReflectServiceRespPayload(respPayload)
+	if err != nil {
+		return fmt.Errorf("cannot marshal ReflectServiceRespPayload: %w", err)
+	}
+	resp.(interface {
+		SetPayload(val []byte)
+	}).SetPayload(payloadBuf)
+	return nil
+}
+
+func (p *PluginImpl) NewRespPayload(idlBytes []byte) *ReflectServiceRespPayload {
+	return &ReflectServiceRespPayload{
+		Version: p.Version,
+		IDL:     idlBytes,
+	}
 }

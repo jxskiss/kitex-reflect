@@ -66,10 +66,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	const genTimeLayout = "20060102150405"
+	const genTimeLayout = "20060102150405Z"
 	err = tpl.Execute(buf, map[string]interface{}{
 		"PkgName":  pkgName,
-		"GenTime":  time.Now().Format(genTimeLayout),
+		"GenTime":  time.Now().In(time.UTC).Format(genTimeLayout),
 		"IDLBytes": idlBytes,
 	})
 	if err != nil {
