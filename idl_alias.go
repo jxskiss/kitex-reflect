@@ -12,8 +12,6 @@ type (
 )
 
 var (
-	CheckReflectReqAndRespType = idl.CheckReflectReqAndRespType
-
 	MarshalReflectServiceReqPayload   = idl.MarshalReflectServiceReqPayload
 	UnmarshalReflectServiceReqPayload = idl.UnmarshalReflectServiceReqPayload
 

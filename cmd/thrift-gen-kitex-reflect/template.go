@@ -5,28 +5,28 @@ var implTpl = `
 package {{ .PkgName }}
 
 import (
-	"context"
-
 	idl "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl"
 )
 
-func ServeReflectServiceRequest(ctx context.Context, req interface{}, resp interface{}) error {
-	return pluginReflectImpl.ServeRequest(ctx, req, resp, pluginReflectIDLRaw)
+func init() {
+	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo()
 }
 
 func GetReflectServiceRespPayload() *idl.ReflectServiceRespPayload {
-	return pluginReflectImpl.NewRespPayload(pluginReflectIDLRaw)
+	return PluginReflect.NewRespPayload()
 }
 
-func GetIDLGzipBytes() []byte {
-	return pluginReflectIDLRaw
+func GetIDLRawBytes() []byte {
+	return idlRawBytes
 }
 
-var pluginReflectImpl = &idl.PluginImpl{
+var PluginReflect = &idl.PluginImpl{
 	Version: "{{ .GenTime }}",
+
+	GetIDLBytes: func() []byte { return idlRawBytes },
 }
 
-var pluginReflectIDLRaw = []byte{
+var idlRawBytes = []byte{
 {{ .IDLBytes }}
 }
 `

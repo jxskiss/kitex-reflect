@@ -145,7 +145,7 @@ func getOutputFile(ast *parser.Thrift, svc *parser.Service, outputPath string) s
 		}
 	}
 	svcName := strings.ToLower(svc.Name)
-	filename := "plugin-reflect-desc.go"
+	filename := "plugin-reflect-gen.go"
 	descFile := filepath.Join(outputPath, namespace, svcName, filename)
 	return descFile
 }
