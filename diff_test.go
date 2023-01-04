@@ -14,8 +14,8 @@ func TestDiffComparator(t *testing.T) {
 	assert.Nil(t, err)
 	kitexDesc := <-kitexProv.Provide()
 
-	idlBytes := reflectionservice.GetIDLRawBytes()
-	pluginDesc, err := BuildServiceDescriptor(idlBytes)
+	payload := reflectionservice.GetReflectServiceRespPayload()
+	pluginDesc, err := BuildServiceDescriptor(payload)
 	assert.Nil(t, err)
 
 	diff := NewDiffComparator(kitexDesc, pluginDesc)

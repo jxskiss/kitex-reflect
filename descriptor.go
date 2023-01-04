@@ -43,7 +43,7 @@ func NewDescriptorProvider(ctx context.Context, serviceName string, opts ...clie
 	if err != nil {
 		return nil, err
 	}
-	desc, err := BuildServiceDescriptor(respPayload.IDL)
+	desc, err := BuildServiceDescriptor(respPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 		return
 	}
 
-	desc, err := BuildServiceDescriptor(payload.IDL)
+	desc, err := BuildServiceDescriptor(payload)
 	if err != nil {
 		msg := fmt.Sprintf("failed to build descriptor for service %s", p.serviceName)
 		p.ErrorHandler(err, msg)
@@ -179,22 +179,22 @@ func newReflectServiceRequest(existingIDLVersion string) *ReflectServiceRequest 
 }
 
 // BuildServiceDescriptor builds a [descriptor.ServiceDescriptor] from a ReflectServiceResponse.
-func BuildServiceDescriptor(idlBytes []byte) (*descriptor.ServiceDescriptor, error) {
-	if len(idlBytes) == 0 {
+func BuildServiceDescriptor(payload *idl.ReflectServiceRespPayload) (*descriptor.ServiceDescriptor, error) {
+	if len(payload.IDL) == 0 {
 		return nil, fmt.Errorf("IDL bytes is empty")
 	}
 	builder := &descriptorBuilder{
-		idlBytes: idlBytes,
+		payload: payload,
 	}
 	return builder.Build()
 }
 
 type descriptorBuilder struct {
-	idlBytes []byte
+	payload *ReflectServiceRespPayload
 }
 
 func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
-	gzr, _ := gzip.NewReader(bytes.NewBuffer(p.idlBytes))
+	gzr, _ := gzip.NewReader(bytes.NewBuffer(p.payload.IDL))
 	rawBuf, err := io.ReadAll(gzr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot decompress IDL bytes: %w", err)
@@ -206,7 +206,12 @@ func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
 		return nil, fmt.Errorf("cannot unmarshal parser.Thrift: %w", err)
 	}
 
-	desc, err := thrift.Parse(ast, thrift.DefaultParseMode())
+	parseMode := thrift.DefaultParseMode()
+	if p.payload.IsCombineService {
+		parseMode = thrift.CombineServices
+	}
+
+	desc, err := thrift.Parse(ast, parseMode)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse thirft IDL: %w", err)
 	}

@@ -190,8 +190,22 @@ func (p *ReflectServiceRespPayload) FastRead(buf []byte) (int, error) {
 				}
 			}
 		case 2:
-			if fieldTypeId == thrift.STRING {
+			if fieldTypeId == thrift.BOOL {
 				l, err = p.FastReadField2(buf[offset:])
+				offset += l
+				if err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				l, err = bthrift.Binary.Skip(buf[offset:], fieldTypeId)
+				offset += l
+				if err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 15:
+			if fieldTypeId == thrift.STRING {
+				l, err = p.FastReadField15(buf[offset:])
 				offset += l
 				if err != nil {
 					goto ReadFieldError
@@ -255,6 +269,20 @@ func (p *ReflectServiceRespPayload) FastReadField1(buf []byte) (int, error) {
 func (p *ReflectServiceRespPayload) FastReadField2(buf []byte) (int, error) {
 	offset := 0
 
+	if v, l, err := bthrift.Binary.ReadBool(buf[offset:]); err != nil {
+		return offset, err
+	} else {
+		offset += l
+
+		p.IsCombineService = v
+
+	}
+	return offset, nil
+}
+
+func (p *ReflectServiceRespPayload) FastReadField15(buf []byte) (int, error) {
+	offset := 0
+
 	if v, l, err := bthrift.Binary.ReadBinary(buf[offset:]); err != nil {
 		return offset, err
 	} else {
@@ -275,8 +303,9 @@ func (p *ReflectServiceRespPayload) FastWriteNocopy(buf []byte, binaryWriter bth
 	offset := 0
 	offset += bthrift.Binary.WriteStructBegin(buf[offset:], "ReflectServiceRespPayload")
 	if p != nil {
-		offset += p.fastWriteField1(buf[offset:], binaryWriter)
 		offset += p.fastWriteField2(buf[offset:], binaryWriter)
+		offset += p.fastWriteField1(buf[offset:], binaryWriter)
+		offset += p.fastWriteField15(buf[offset:], binaryWriter)
 	}
 	offset += bthrift.Binary.WriteFieldStop(buf[offset:])
 	offset += bthrift.Binary.WriteStructEnd(buf[offset:])
@@ -289,6 +318,7 @@ func (p *ReflectServiceRespPayload) BLength() int {
 	if p != nil {
 		l += p.field1Length()
 		l += p.field2Length()
+		l += p.field15Length()
 	}
 	l += bthrift.Binary.FieldStopLength()
 	l += bthrift.Binary.StructEndLength()
@@ -306,7 +336,16 @@ func (p *ReflectServiceRespPayload) fastWriteField1(buf []byte, binaryWriter bth
 
 func (p *ReflectServiceRespPayload) fastWriteField2(buf []byte, binaryWriter bthrift.BinaryWriter) int {
 	offset := 0
-	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "IDL", thrift.STRING, 2)
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "IsCombineService", thrift.BOOL, 2)
+	offset += bthrift.Binary.WriteBool(buf[offset:], p.IsCombineService)
+
+	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
+	return offset
+}
+
+func (p *ReflectServiceRespPayload) fastWriteField15(buf []byte, binaryWriter bthrift.BinaryWriter) int {
+	offset := 0
+	offset += bthrift.Binary.WriteFieldBegin(buf[offset:], "IDL", thrift.STRING, 15)
 	offset += bthrift.Binary.WriteBinaryNocopy(buf[offset:], binaryWriter, []byte(p.IDL))
 
 	offset += bthrift.Binary.WriteFieldEnd(buf[offset:])
@@ -324,7 +363,16 @@ func (p *ReflectServiceRespPayload) field1Length() int {
 
 func (p *ReflectServiceRespPayload) field2Length() int {
 	l := 0
-	l += bthrift.Binary.FieldBeginLength("IDL", thrift.STRING, 2)
+	l += bthrift.Binary.FieldBeginLength("IsCombineService", thrift.BOOL, 2)
+	l += bthrift.Binary.BoolLength(p.IsCombineService)
+
+	l += bthrift.Binary.FieldEndLength()
+	return l
+}
+
+func (p *ReflectServiceRespPayload) field15Length() int {
+	l := 0
+	l += bthrift.Binary.FieldBeginLength("IDL", thrift.STRING, 15)
 	l += bthrift.Binary.BinaryLengthNocopy([]byte(p.IDL))
 
 	l += bthrift.Binary.FieldEndLength()

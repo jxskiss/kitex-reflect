@@ -50,10 +50,12 @@ func main() {
 		println(string(requestJSON))
 	})
 
-	lastService := request.AST.Services[len(request.AST.Services)-1]
-	pkgName := strings.ToLower(lastService.Name)
+	gen := &generator{
+		ast: request.AST,
+	}
+	gen.parsePluginParameters(request.PluginParameters)
 
-	idlBytes, err := encodeIDLToBytes(request.AST)
+	idlBytes, err := gen.encodeIDLToBytes()
 	if err != nil {
 		println("Failed to encode IDL:", err.Error())
 		os.Exit(1)
@@ -68,8 +70,9 @@ func main() {
 
 	const genTimeLayout = "20060102150405Z"
 	err = tpl.Execute(buf, map[string]interface{}{
-		"PkgName":  pkgName,
+		"PkgName":  gen.getPkgName(),
 		"GenTime":  time.Now().In(time.UTC).Format(genTimeLayout),
+		"Args":     gen.args,
 		"IDLBytes": idlBytes,
 	})
 	if err != nil {
@@ -83,7 +86,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputFile := getOutputFile(request.AST, lastService, request.OutputPath)
+	outputFile := gen.getOutputFile(request.OutputPath)
 	descCode := &plugin.Generated{
 		Content:        string(code),
 		Name:           &outputFile,
@@ -111,7 +114,35 @@ func exit(response *plugin.Response) int {
 	return 0
 }
 
-func encodeIDLToBytes(ast *parser.Thrift) (string, error) {
+type generator struct {
+	ast  *parser.Thrift
+	args struct {
+		IsCombineService bool
+		AutoSetup        bool
+	}
+}
+
+func (p *generator) parsePluginParameters(params []string) {
+	for _, arg := range params {
+		kv := strings.SplitN(arg, "=", 2)
+		var k, v = kv[0], ""
+		if len(kv) > 1 {
+			v = kv[1]
+		}
+		println("options: " + k + "=" + v)
+
+		switch k {
+		case "combine_service":
+			p.args.IsCombineService = true
+		case "auto_setup":
+			p.args.AutoSetup = true
+		}
+	}
+}
+
+func (p *generator) encodeIDLToBytes() (string, error) {
+	ast := p.ast
+	deleteName2CategoryInfo(ast)
 	buf, err := meta.Marshal(ast)
 	if err != nil {
 		return "", fmt.Errorf("cannot marshal parser.Thrift: %w", err)
@@ -137,15 +168,37 @@ func encodeIDLToBytes(ast *parser.Thrift) (string, error) {
 	return strb.String(), nil
 }
 
-func getOutputFile(ast *parser.Thrift, svc *parser.Service, outputPath string) string {
+func deleteName2CategoryInfo(ast *parser.Thrift) {
+	if ast == nil {
+		return
+	}
+	ast.Name2Category = nil
+	for _, inc := range ast.Includes {
+		deleteName2CategoryInfo(inc.Reference)
+	}
+}
+
+func (p *generator) getPkgName() string {
+	ast := p.ast
+	lastSvc := ast.Services[len(ast.Services)-1]
+	pkgName := strings.ToLower(lastSvc.Name)
+	if p.args.IsCombineService {
+		pkgName = "combineservice"
+	}
+	return pkgName
+}
+
+func (p *generator) getOutputFile(outputPath string) string {
+	ast := p.ast
+
 	var namespace string
 	for _, ns := range ast.Namespaces {
 		if ns.Language == "go" {
 			namespace = strings.ReplaceAll(ns.Name, ".", "/")
 		}
 	}
-	svcName := strings.ToLower(svc.Name)
+	pkgName := p.getPkgName
 	filename := "plugin-reflect-gen.go"
-	descFile := filepath.Join(outputPath, namespace, svcName, filename)
+	descFile := filepath.Join(outputPath, namespace, pkgName(), filename)
 	return descFile
 }

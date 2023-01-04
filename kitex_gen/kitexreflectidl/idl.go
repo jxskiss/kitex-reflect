@@ -175,8 +175,9 @@ func (p *ReflectServiceReqPayload) Field1DeepEqual(src string) bool {
 }
 
 type ReflectServiceRespPayload struct {
-	Version string `thrift:"Version,1" frugal:"1,default,string" json:"Version"`
-	IDL     []byte `thrift:"IDL,2" frugal:"2,default,binary" json:"IDL"`
+	Version          string `thrift:"Version,1" frugal:"1,default,string" json:"Version"`
+	IsCombineService bool   `thrift:"IsCombineService,2" frugal:"2,default,bool" json:"IsCombineService"`
+	IDL              []byte `thrift:"IDL,15" frugal:"15,default,binary" json:"IDL"`
 }
 
 func NewReflectServiceRespPayload() *ReflectServiceRespPayload {
@@ -191,19 +192,27 @@ func (p *ReflectServiceRespPayload) GetVersion() (v string) {
 	return p.Version
 }
 
+func (p *ReflectServiceRespPayload) GetIsCombineService() (v bool) {
+	return p.IsCombineService
+}
+
 func (p *ReflectServiceRespPayload) GetIDL() (v []byte) {
 	return p.IDL
 }
 func (p *ReflectServiceRespPayload) SetVersion(val string) {
 	p.Version = val
 }
+func (p *ReflectServiceRespPayload) SetIsCombineService(val bool) {
+	p.IsCombineService = val
+}
 func (p *ReflectServiceRespPayload) SetIDL(val []byte) {
 	p.IDL = val
 }
 
 var fieldIDToName_ReflectServiceRespPayload = map[int16]string{
-	1: "Version",
-	2: "IDL",
+	1:  "Version",
+	2:  "IsCombineService",
+	15: "IDL",
 }
 
 func (p *ReflectServiceRespPayload) Read(iprot thrift.TProtocol) (err error) {
@@ -236,8 +245,18 @@ func (p *ReflectServiceRespPayload) Read(iprot thrift.TProtocol) (err error) {
 				}
 			}
 		case 2:
-			if fieldTypeId == thrift.STRING {
+			if fieldTypeId == thrift.BOOL {
 				if err = p.ReadField2(iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 15:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField15(iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -285,6 +304,15 @@ func (p *ReflectServiceRespPayload) ReadField1(iprot thrift.TProtocol) error {
 }
 
 func (p *ReflectServiceRespPayload) ReadField2(iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBool(); err != nil {
+		return err
+	} else {
+		p.IsCombineService = v
+	}
+	return nil
+}
+
+func (p *ReflectServiceRespPayload) ReadField15(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadBinary(); err != nil {
 		return err
 	} else {
@@ -305,6 +333,10 @@ func (p *ReflectServiceRespPayload) Write(oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField2(oprot); err != nil {
 			fieldId = 2
+			goto WriteFieldError
+		}
+		if err = p.writeField15(oprot); err != nil {
+			fieldId = 15
 			goto WriteFieldError
 		}
 
@@ -344,10 +376,10 @@ WriteFieldEndError:
 }
 
 func (p *ReflectServiceRespPayload) writeField2(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("IDL", thrift.STRING, 2); err != nil {
+	if err = oprot.WriteFieldBegin("IsCombineService", thrift.BOOL, 2); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteBinary([]byte(p.IDL)); err != nil {
+	if err := oprot.WriteBool(p.IsCombineService); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {
@@ -358,6 +390,23 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
+}
+
+func (p *ReflectServiceRespPayload) writeField15(oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin("IDL", thrift.STRING, 15); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteBinary([]byte(p.IDL)); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 15 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 15 end error: ", p), err)
 }
 
 func (p *ReflectServiceRespPayload) String() string {
@@ -376,7 +425,10 @@ func (p *ReflectServiceRespPayload) DeepEqual(ano *ReflectServiceRespPayload) bo
 	if !p.Field1DeepEqual(ano.Version) {
 		return false
 	}
-	if !p.Field2DeepEqual(ano.IDL) {
+	if !p.Field2DeepEqual(ano.IsCombineService) {
+		return false
+	}
+	if !p.Field15DeepEqual(ano.IDL) {
 		return false
 	}
 	return true
@@ -389,7 +441,14 @@ func (p *ReflectServiceRespPayload) Field1DeepEqual(src string) bool {
 	}
 	return true
 }
-func (p *ReflectServiceRespPayload) Field2DeepEqual(src []byte) bool {
+func (p *ReflectServiceRespPayload) Field2DeepEqual(src bool) bool {
+
+	if p.IsCombineService != src {
+		return false
+	}
+	return true
+}
+func (p *ReflectServiceRespPayload) Field15DeepEqual(src []byte) bool {
 
 	if bytes.Compare(p.IDL, src) != 0 {
 		return false

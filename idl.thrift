@@ -6,7 +6,9 @@ struct ReflectServiceReqPayload {
 
 struct ReflectServiceRespPayload {
     1: string Version
-    2: binary IDL
+    2: bool IsCombineService
+
+    15: binary IDL
 }
 
 struct ReflectServiceRequest {

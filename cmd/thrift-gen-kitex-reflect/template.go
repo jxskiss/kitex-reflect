@@ -8,7 +8,13 @@ import (
 	idl "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl"
 )
 
+{{- if .Args.AutoSetup }}
 func init() {
+	SetupReflectPluginMethods()
+}
+{{- end }}
+
+func SetupReflectPluginMethods() {
 	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo()
 }
 
@@ -22,6 +28,7 @@ func GetIDLRawBytes() []byte {
 
 var PluginReflect = &idl.PluginImpl{
 	Version: "{{ .GenTime }}",
+	IsCombineService: {{ .Args.IsCombineService }},
 
 	GetIDLBytes: func() []byte { return idlRawBytes },
 }

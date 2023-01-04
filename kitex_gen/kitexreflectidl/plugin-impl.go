@@ -9,8 +9,6 @@ import (
 	"github.com/cloudwego/kitex/pkg/serviceinfo"
 )
 
-const logPrefix = "KitexReflect: "
-
 // MarshalReflectServiceReqPayload encodes a ReflectServiceReqPayload with binary protocol.
 func MarshalReflectServiceReqPayload(payload *ReflectServiceReqPayload) ([]byte, error) {
 	s := thrift.NewTSerializer()
@@ -48,7 +46,8 @@ func UnmarshalReflectServiceRespPayload(bs []byte) (*ReflectServiceRespPayload, 
 type RequestHandler func(ctx context.Context, req *ReflectServiceRequest, resp *ReflectServiceResponse) error
 
 type PluginImpl struct {
-	Version string
+	Version          string
+	IsCombineService bool
 
 	GetIDLBytes func() []byte
 
@@ -66,8 +65,9 @@ func (p *PluginImpl) ServeRequest(ctx context.Context, req *ReflectServiceReques
 	}
 
 	respPayload := &ReflectServiceRespPayload{
-		Version: p.Version,
-		IDL:     nil,
+		Version:          p.Version,
+		IsCombineService: p.IsCombineService,
+		IDL:              nil,
 	}
 	if reqPayload.ExistingIDLVersion != p.Version {
 		respPayload.IDL = p.GetIDLBytes()
@@ -82,8 +82,9 @@ func (p *PluginImpl) ServeRequest(ctx context.Context, req *ReflectServiceReques
 
 func (p *PluginImpl) NewRespPayload() *ReflectServiceRespPayload {
 	return &ReflectServiceRespPayload{
-		Version: p.Version,
-		IDL:     p.GetIDLBytes(),
+		Version:          p.Version,
+		IsCombineService: p.IsCombineService,
+		IDL:              p.GetIDLBytes(),
 	}
 }
 
@@ -106,8 +107,7 @@ func (p *PluginImpl) reflectServiceHandler(ctx context.Context, _ interface{}, a
 	response := NewReflectServiceResponse()
 	err := methodHandler(ctx, realArg.Request, response)
 	if err != nil {
-		const format = logPrefix + "failed to serve ReflectService request: %v"
-		klog.CtxErrorf(ctx, format, err)
+		klog.CtxErrorf(ctx, "KitexReflect: failed to serve ReflectService request: %v", err)
 		return err
 	}
 	realResult.Success = response
