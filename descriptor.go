@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,7 +34,6 @@ func NewDescriptorProvider(
 		errorHandler:     defaultErrorHandler,
 		cli:              cli,
 		serviceName:      serviceName,
-		updating:         1,
 		updates:          make(chan *descriptor.ServiceDescriptor, 1),
 	}
 	for _, opt := range providerOpts {
@@ -50,18 +48,18 @@ func NewDescriptorProvider(
 			return nil, err
 		}
 		impl.setNewDescriptor(desc, version)
-		impl.updating = 0
 	} else {
-		notify := make(chan descriptor.Router, 1)
+		notify := make(chan *descriptor.ServiceDescriptor, 1)
 		placeholderDesc := newPlaceholderDescriptor(serviceName, notify)
 		impl.updates <- placeholderDesc
+		impl.updating = 1
 		go impl.asyncInitialize(ctx, notify)
 	}
 
 	return impl, nil
 }
 
-func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan descriptor.Router) {
+func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan *descriptor.ServiceDescriptor) {
 	defer atomic.StoreInt64(&p.updating, 0)
 	const (
 		errSleep           = 300 * time.Millisecond
@@ -75,7 +73,7 @@ func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan descripto
 		desc, version, err := doRequestDescriptor(ctx, p.cli, "")
 		if err == nil {
 			p.setNewDescriptor(desc, version)
-			ready <- desc.Router
+			ready <- desc
 			close(ready)
 			return
 		}
@@ -211,7 +209,7 @@ func (p *ProviderImpl) setNewDescriptor(desc *descriptor.ServiceDescriptor, vers
 	atomic.StoreInt64(&p.preUpdateSec, time.Now().Unix())
 }
 
-func newPlaceholderDescriptor(serviceName string, notify <-chan descriptor.Router) *descriptor.ServiceDescriptor {
+func newPlaceholderDescriptor(serviceName string, notify <-chan *descriptor.ServiceDescriptor) *descriptor.ServiceDescriptor {
 	desc := &descriptor.ServiceDescriptor{
 		Name:      "KitexReflectPlaceholderService",
 		Functions: nil,
@@ -228,32 +226,38 @@ type placeholderRouter struct {
 	serviceName string
 	initTime    time.Time
 
-	notify <-chan descriptor.Router
-	real   atomic.Value // descriptor.Router
+	notify   <-chan *descriptor.ServiceDescriptor
+	realDesc atomic.Value // *descriptor.ServiceDescriptor
 }
 
-func (r *placeholderRouter) Handle(_ descriptor.Route) {
+func (p *placeholderRouter) Handle(_ descriptor.Route) {
 }
 
-func (r *placeholderRouter) Lookup(req *descriptor.HTTPRequest) (*descriptor.FunctionDescriptor, error) {
-	const timeout = time.Second
-	var realr descriptor.Router
+func (p *placeholderRouter) Lookup(req *descriptor.HTTPRequest) (*descriptor.FunctionDescriptor, error) {
+	realDesc, _ := p.realDesc.Load().(*descriptor.ServiceDescriptor)
+	if realDesc != nil {
+		return realDesc.Router.Lookup(req)
+	}
+
+	const timeout = 500 * time.Millisecond
 	select {
-	case realr = <-r.notify:
-		if realr != nil {
-			r.real.Store(realr)
+	case realDesc = <-p.notify:
+		if realDesc != nil {
+			p.realDesc.Store(realDesc)
 		} else {
-			realr, _ = r.real.Load().(descriptor.Router)
-			for realr == nil {
-				runtime.Gosched()
-				realr, _ = r.real.Load().(descriptor.Router)
-			}
+			time.Sleep(time.Millisecond)
 		}
 	case <-time.After(timeout):
-		return nil, fmt.Errorf("descriptor for service %s is not ready after %v",
-			r.serviceName, time.Since(r.initTime))
 	}
-	return realr.Lookup(req)
+
+	if realDesc == nil {
+		realDesc, _ = p.realDesc.Load().(*descriptor.ServiceDescriptor)
+	}
+	if realDesc == nil {
+		return nil, fmt.Errorf("descriptor for service %s is not ready after %v",
+			p.serviceName, time.Since(p.initTime))
+	}
+	return realDesc.Router.Lookup(req)
 }
 
 func isUnknownMethodError(err error) bool {

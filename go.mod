@@ -6,7 +6,7 @@ require (
 	github.com/apache/thrift v0.13.0
 	github.com/cloudwego/kitex v0.4.4
 	github.com/cloudwego/thriftgo v0.2.4
-	github.com/jxskiss/kitex-reflect/kitex_gen v0.3.1
+	github.com/jxskiss/kitex-reflect/kitex_gen v0.4.0
 	github.com/stretchr/testify v1.8.1
 )
 
