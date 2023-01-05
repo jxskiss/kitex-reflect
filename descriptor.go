@@ -1,12 +1,10 @@
 package kitexreflect
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
-	"io"
-	"log"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,50 +12,81 @@ import (
 	"github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/pkg/generic"
 	"github.com/cloudwego/kitex/pkg/generic/descriptor"
-	"github.com/cloudwego/kitex/pkg/generic/thrift"
-	"github.com/cloudwego/thriftgo/generator/golang/extension/meta"
-	"github.com/cloudwego/thriftgo/parser"
+	"github.com/cloudwego/kitex/pkg/remote"
 
 	idl "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl"
 	svc "github.com/jxskiss/kitex-reflect/kitex_gen/kitexreflectidl/reflectionservice"
 )
 
-const defaultDebounceInterval = 10 * time.Second
-
-func defaultErrorHandler(err error, msg string) {
-	log.Printf("ERROR: %s: %v", msg, err)
-}
-
 // NewDescriptorProvider creates a ProviderImpl which implements [generic.DescriptorProvider].
-func NewDescriptorProvider(ctx context.Context, serviceName string, opts ...client.Option) (*ProviderImpl, error) {
-	cli, err := svc.NewClient(serviceName, opts...)
-	if err != nil {
-		return nil, err
-	}
-	firstReq := newReflectServiceRequest("")
-	firstResp, err := cli.ReflectService(ctx, firstReq)
-	if err != nil {
-		return nil, err
-	}
-	respPayload, err := idl.UnmarshalReflectServiceRespPayload(firstResp.Payload)
-	if err != nil {
-		return nil, err
-	}
-	desc, err := BuildServiceDescriptor(respPayload)
+func NewDescriptorProvider(
+	ctx context.Context,
+	serviceName string,
+	kclientOptions []client.Option,
+	providerOpts ...Option,
+) (*ProviderImpl, error) {
+	cli, err := svc.NewClient(serviceName, kclientOptions...)
 	if err != nil {
 		return nil, err
 	}
 
 	impl := &ProviderImpl{
-		DebounceInterval: defaultDebounceInterval,
-		ErrorHandler:     defaultErrorHandler,
+		debounceInterval: defaultDebounceInterval,
+		errorHandler:     defaultErrorHandler,
 		cli:              cli,
 		serviceName:      serviceName,
+		updating:         1,
 		updates:          make(chan *descriptor.ServiceDescriptor, 1),
-		version:          respPayload.Version,
 	}
-	impl.updates <- desc
+	for _, opt := range providerOpts {
+		if opt.applyDescProv != nil {
+			opt.applyDescProv(impl)
+		}
+	}
+
+	if !impl.initAsync {
+		desc, version, err := doRequestDescriptor(ctx, impl.cli, "")
+		if err != nil {
+			return nil, err
+		}
+		impl.setNewDescriptor(desc, version)
+		impl.updating = 0
+	} else {
+		notify := make(chan descriptor.Router, 1)
+		placeholderDesc := newPlaceholderDescriptor(serviceName, notify)
+		impl.updates <- placeholderDesc
+		go impl.asyncInitialize(ctx, notify)
+	}
+
 	return impl, nil
+}
+
+func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan descriptor.Router) {
+	defer atomic.StoreInt64(&p.updating, 0)
+	const (
+		errSleep           = 300 * time.Millisecond
+		unknownMethodSleep = time.Second
+	)
+	for {
+		if p.IsClosed() {
+			close(ready)
+			return
+		}
+		desc, version, err := doRequestDescriptor(ctx, p.cli, "")
+		if err == nil {
+			p.setNewDescriptor(desc, version)
+			ready <- desc.Router
+			close(ready)
+			return
+		}
+		errMsg := fmt.Sprintf("failed to init descriptor for service %s", p.serviceName)
+		p.errorHandler(err, errMsg)
+		sleep := errSleep
+		if isUnknownMethodError(err) {
+			sleep = unknownMethodSleep
+		}
+		time.Sleep(sleep)
+	}
 }
 
 var _ generic.DescriptorProvider = &ProviderImpl{}
@@ -66,19 +95,13 @@ var _ generic.DescriptorProvider = &ProviderImpl{}
 // it calls the service's method ReflectService to build service descriptor.
 // It implements [generic.DescriptorProvider].
 type ProviderImpl struct {
-
-	// DebounceInterval sets max interval to debounce requests
-	// sent to backend service. The default is 10 seconds.
-	DebounceInterval time.Duration
-
-	// ErrorHandler optionally specifies an error handler function
-	// for errors happened when updating service descriptor from
-	// backend service.
-	// By default, it logs error using the [log] package.
-	ErrorHandler func(err error, msg string)
+	debounceInterval time.Duration
+	errorHandler     func(err error, msg string)
 
 	cli         svc.Client
 	serviceName string
+
+	initAsync bool
 
 	preUpdateSec int64
 	updating     int64
@@ -110,19 +133,18 @@ func (p *ProviderImpl) Provide() <-chan *descriptor.ServiceDescriptor {
 }
 
 // Update triggers updating service descriptor from backend service.
-// The actual rpc requests will be debounced according to DebounceInterval.
+// The actual rpc requests will be debounced according to debounceInterval.
 // This method is safe to call concurrently.
 func (p *ProviderImpl) Update(ctx context.Context) {
 	if p.IsClosed() {
 		return
 	}
 	preUpdateTime := time.Unix(atomic.LoadInt64(&p.preUpdateSec), 0)
-	if time.Since(preUpdateTime) < p.DebounceInterval {
+	if time.Since(preUpdateTime) < p.debounceInterval {
 		return
 	}
 
 	if atomic.CompareAndSwapInt64(&p.updating, 0, 1) {
-		atomic.StoreInt64(&p.preUpdateSec, time.Now().Unix())
 		go p.doUpdate(ctx)
 	}
 }
@@ -130,31 +152,51 @@ func (p *ProviderImpl) Update(ctx context.Context) {
 func (p *ProviderImpl) doUpdate(ctx context.Context) {
 	defer atomic.StoreInt64(&p.updating, 0)
 
-	req := newReflectServiceRequest(p.version)
-	resp, err := p.cli.ReflectService(ctx, req)
-	if err != nil {
-		msg := fmt.Sprintf("failed to call %s.ReflectService", p.serviceName)
-		p.ErrorHandler(err, msg)
-		return
-	}
-	payload, err := idl.UnmarshalReflectServiceRespPayload(resp.Payload)
-	if err != nil {
-		msg := fmt.Sprintf("failed to unmarshal response payload: %v", err)
-		p.ErrorHandler(err, msg)
-		return
-	}
-	if payload.Version == "" || payload.Version == p.version {
-		// The IDL is not changed.
-		return
+	const (
+		retryCnt = 2
+		sleep    = 100 * time.Millisecond
+	)
+	var (
+		desc    *descriptor.ServiceDescriptor
+		payload *idl.ReflectServiceRespPayload
+	)
+	for i := 0; i <= retryCnt; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+		}
+		req := newReflectServiceRequest(p.version)
+		resp, err := p.cli.ReflectService(ctx, req)
+		if err != nil {
+			msg := fmt.Sprintf("failed to call %s.ReflectService", p.serviceName)
+			p.errorHandler(err, msg)
+			continue
+		}
+		payload, err = idl.UnmarshalReflectServiceRespPayload(resp.Payload)
+		if err != nil {
+			msg := fmt.Sprintf("failed to unmarshal response payload: %v", err)
+			p.errorHandler(err, msg)
+			return
+		}
+		if payload.Version == "" || payload.Version == p.version {
+			// The IDL is not changed, nothing to update.
+			return
+		}
+
+		desc, err = BuildServiceDescriptor(payload)
+		if err != nil {
+			msg := fmt.Sprintf("failed to build descriptor for service %s", p.serviceName)
+			p.errorHandler(err, msg)
+			return
+		}
 	}
 
-	desc, err := BuildServiceDescriptor(payload)
-	if err != nil {
-		msg := fmt.Sprintf("failed to build descriptor for service %s", p.serviceName)
-		p.ErrorHandler(err, msg)
-		return
+	if desc != nil {
+		p.setNewDescriptor(desc, payload.Version)
 	}
+	return
+}
 
+func (p *ProviderImpl) setNewDescriptor(desc *descriptor.ServiceDescriptor, version string) {
 	p.closeMu.Lock()
 	defer p.closeMu.Unlock()
 	if p.IsClosed() {
@@ -165,55 +207,59 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 	default:
 	}
 	p.updates <- desc
-	p.version = payload.Version
+	p.version = version
+	atomic.StoreInt64(&p.preUpdateSec, time.Now().Unix())
 }
 
-func newReflectServiceRequest(existingIDLVersion string) *ReflectServiceRequest {
-	payload := &idl.ReflectServiceReqPayload{
-		ExistingIDLVersion: existingIDLVersion,
+func newPlaceholderDescriptor(serviceName string, notify <-chan descriptor.Router) *descriptor.ServiceDescriptor {
+	desc := &descriptor.ServiceDescriptor{
+		Name:      "KitexReflectPlaceholderService",
+		Functions: nil,
+		Router: &placeholderRouter{
+			serviceName: serviceName,
+			initTime:    time.Now(),
+			notify:      notify,
+		},
 	}
-	payloadBuf, _ := idl.MarshalReflectServiceReqPayload(payload)
-	return &idl.ReflectServiceRequest{
-		Payload: payloadBuf,
-	}
+	return desc
 }
 
-// BuildServiceDescriptor builds a [descriptor.ServiceDescriptor] from a ReflectServiceResponse.
-func BuildServiceDescriptor(payload *idl.ReflectServiceRespPayload) (*descriptor.ServiceDescriptor, error) {
-	if len(payload.IDL) == 0 {
-		return nil, fmt.Errorf("IDL bytes is empty")
-	}
-	builder := &descriptorBuilder{
-		payload: payload,
-	}
-	return builder.Build()
+type placeholderRouter struct {
+	serviceName string
+	initTime    time.Time
+
+	notify <-chan descriptor.Router
+	real   atomic.Value // descriptor.Router
 }
 
-type descriptorBuilder struct {
-	payload *ReflectServiceRespPayload
+func (r *placeholderRouter) Handle(_ descriptor.Route) {
 }
 
-func (p *descriptorBuilder) Build() (*descriptor.ServiceDescriptor, error) {
-	gzr, _ := gzip.NewReader(bytes.NewBuffer(p.payload.IDL))
-	rawBuf, err := io.ReadAll(gzr)
-	if err != nil {
-		return nil, fmt.Errorf("cannot decompress IDL bytes: %w", err)
+func (r *placeholderRouter) Lookup(req *descriptor.HTTPRequest) (*descriptor.FunctionDescriptor, error) {
+	const timeout = time.Second
+	var realr descriptor.Router
+	select {
+	case realr = <-r.notify:
+		if realr != nil {
+			r.real.Store(realr)
+		} else {
+			realr, _ = r.real.Load().(descriptor.Router)
+			for realr == nil {
+				runtime.Gosched()
+				realr, _ = r.real.Load().(descriptor.Router)
+			}
+		}
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("descriptor for service %s is not ready after %v",
+			r.serviceName, time.Since(r.initTime))
 	}
+	return realr.Lookup(req)
+}
 
-	ast := &parser.Thrift{}
-	err = meta.Unmarshal(rawBuf, ast)
-	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal parser.Thrift: %w", err)
+func isUnknownMethodError(err error) bool {
+	var transErr *remote.TransError
+	if errors.As(err, &transErr) {
+		return transErr.TypeID() == remote.UnknownMethod
 	}
-
-	parseMode := thrift.DefaultParseMode()
-	if p.payload.IsCombineService {
-		parseMode = thrift.CombineServices
-	}
-
-	desc, err := thrift.Parse(ast, parseMode)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse thirft IDL: %w", err)
-	}
-	return desc, nil
+	return false
 }
