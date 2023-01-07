@@ -48,3 +48,13 @@ func InitAsync() Option {
 		},
 	}
 }
+
+// AutoUpdate tells the description provider to automatically update
+// service descriptor from backend service.
+func AutoUpdate(interval time.Duration) Option {
+	return Option{
+		applyDescProv: func(impl *ProviderImpl) {
+			impl.autoUpdateInterval = interval
+		},
+	}
+}

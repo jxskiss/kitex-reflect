@@ -21,10 +21,10 @@ import (
 func NewDescriptorProvider(
 	ctx context.Context,
 	serviceName string,
-	kclientOptions []client.Option,
+	kcOptions []client.Option,
 	providerOpts ...Option,
 ) (*ProviderImpl, error) {
-	cli, err := svc.NewClient(serviceName, kclientOptions...)
+	cli, err := svc.NewClient(serviceName, kcOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +54,10 @@ func NewDescriptorProvider(
 		impl.updates <- placeholderDesc
 		impl.updating = 1
 		go impl.asyncInitialize(ctx, notify)
+	}
+
+	if impl.autoUpdateInterval > 0 {
+		go impl.autoUpdate()
 	}
 
 	return impl, nil
@@ -87,6 +91,19 @@ func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan *descript
 	}
 }
 
+func (p *ProviderImpl) autoUpdate() {
+	ticker := time.NewTicker(p.autoUpdateInterval)
+	defer ticker.Stop()
+
+	ctx := context.Background()
+	for range ticker.C {
+		if p.IsClosed() {
+			return
+		}
+		p.Update(ctx)
+	}
+}
+
 var _ generic.DescriptorProvider = &ProviderImpl{}
 
 // ProviderImpl connects to a Kitex service which has reflection support,
@@ -99,7 +116,8 @@ type ProviderImpl struct {
 	cli         svc.Client
 	serviceName string
 
-	initAsync bool
+	initAsync          bool
+	autoUpdateInterval time.Duration
 
 	preUpdateSec int64
 	updating     int64
