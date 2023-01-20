@@ -10,16 +10,16 @@ import (
 
 {{- if .Args.AutoSetup }}
 func init() {
-	SetupReflectPluginMethods()
+	SetupReflectPlugin()
 }
 {{- end }}
 
-func SetupReflectPluginMethods() {
-	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo()
+func SetupReflectPlugin() {
+	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo("ReflectService")
 }
 
 func GetReflectServiceRespPayload() *idl.ReflectServiceRespPayload {
-	return PluginReflect.NewRespPayload()
+	return PluginReflect.NewReflectServiceRespPayload()
 }
 
 func GetIDLRawBytes() []byte {

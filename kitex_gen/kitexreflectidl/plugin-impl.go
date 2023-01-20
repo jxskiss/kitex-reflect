@@ -43,7 +43,7 @@ func UnmarshalReflectServiceRespPayload(bs []byte) (*ReflectServiceRespPayload, 
 	return payload, nil
 }
 
-type RequestHandler func(ctx context.Context, req *ReflectServiceRequest, resp *ReflectServiceResponse) error
+type ReflectServiceHandler func(ctx context.Context, req *ReflectServiceRequest, resp *ReflectServiceResponse) error
 
 type PluginImpl struct {
 	Version          string
@@ -51,14 +51,14 @@ type PluginImpl struct {
 
 	GetIDLBytes func() []byte
 
-	mw func(next RequestHandler) RequestHandler
+	mw func(next ReflectServiceHandler) ReflectServiceHandler
 }
 
-func (p *PluginImpl) SetMiddleware(mw func(next RequestHandler) RequestHandler) {
+func (p *PluginImpl) SetReflectServiceMiddleware(mw func(next ReflectServiceHandler) ReflectServiceHandler) {
 	p.mw = mw
 }
 
-func (p *PluginImpl) ServeRequest(ctx context.Context, req *ReflectServiceRequest, resp *ReflectServiceResponse) error {
+func (p *PluginImpl) ServeReflectServiceRequest(ctx context.Context, req *ReflectServiceRequest, resp *ReflectServiceResponse) error {
 	reqPayload, err := UnmarshalReflectServiceReqPayload(req.GetPayload())
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal ReflectServiceReqPayload: %w", err)
@@ -80,7 +80,7 @@ func (p *PluginImpl) ServeRequest(ctx context.Context, req *ReflectServiceReques
 	return nil
 }
 
-func (p *PluginImpl) NewRespPayload() *ReflectServiceRespPayload {
+func (p *PluginImpl) NewReflectServiceRespPayload() *ReflectServiceRespPayload {
 	return &ReflectServiceRespPayload{
 		Version:          p.Version,
 		IsCombineService: p.IsCombineService,
@@ -88,17 +88,21 @@ func (p *PluginImpl) NewRespPayload() *ReflectServiceRespPayload {
 	}
 }
 
-func (p *PluginImpl) NewMethodInfo() serviceinfo.MethodInfo {
-	return serviceinfo.NewMethodInfo(
-		p.reflectServiceHandler,
-		newReflectionServiceReflectServiceArgs,
-		newReflectionServiceReflectServiceResult,
-		false,
-	)
+func (p *PluginImpl) NewMethodInfo(method string) serviceinfo.MethodInfo {
+	switch method {
+	case "ReflectService":
+		return serviceinfo.NewMethodInfo(
+			p.reflectServiceHandler,
+			newReflectionServiceReflectServiceArgs,
+			newReflectionServiceReflectServiceResult,
+			false,
+		)
+	}
+	panic(fmt.Sprintf("unknown method %s", method))
 }
 
 func (p *PluginImpl) reflectServiceHandler(ctx context.Context, _ interface{}, arg, result interface{}) error {
-	methodHandler := p.ServeRequest
+	methodHandler := p.ServeReflectServiceRequest
 	if p.mw != nil {
 		methodHandler = p.mw(methodHandler)
 	}
