@@ -65,10 +65,13 @@ func NewDescriptorProvider(
 
 func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan *descriptor.ServiceDescriptor) {
 	defer atomic.StoreInt64(&p.updating, 0)
+
 	const (
-		errSleep           = 300 * time.Millisecond
-		unknownMethodSleep = time.Second
+		errSleep = 200 * time.Millisecond
+		maxSleep = time.Minute
 	)
+
+	sleep := errSleep
 	for {
 		if p.IsClosed() {
 			close(ready)
@@ -83,10 +86,7 @@ func (p *ProviderImpl) asyncInitialize(ctx context.Context, ready chan *descript
 		}
 		errMsg := fmt.Sprintf("failed to init descriptor for service %s", p.serviceName)
 		p.errorHandler(err, errMsg)
-		sleep := errSleep
-		if isUnknownMethodError(err) {
-			sleep = unknownMethodSleep
-		}
+		sleep = min(2*sleep, maxSleep)
 		time.Sleep(sleep)
 	}
 }
@@ -170,7 +170,7 @@ func (p *ProviderImpl) doUpdate(ctx context.Context) {
 
 	const (
 		retryCnt = 2
-		sleep    = 100 * time.Millisecond
+		sleep    = 300 * time.Millisecond
 	)
 	var (
 		desc    *descriptor.ServiceDescriptor
@@ -278,10 +278,18 @@ func (p *placeholderRouter) Lookup(req *descriptor.HTTPRequest) (*descriptor.Fun
 	return realDesc.Router.Lookup(req)
 }
 
+//nolint:unused
 func isUnknownMethodError(err error) bool {
 	var transErr *remote.TransError
 	if errors.As(err, &transErr) {
 		return transErr.TypeID() == remote.UnknownMethod
 	}
 	return false
+}
+
+func min[T ~int | ~int32 | ~int64](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
 }

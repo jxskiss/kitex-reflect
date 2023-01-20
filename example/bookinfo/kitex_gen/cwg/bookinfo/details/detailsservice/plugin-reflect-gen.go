@@ -6,15 +6,15 @@ import (
 )
 
 func init() {
-	SetupReflectPluginMethods()
+	SetupReflectPlugin()
 }
 
-func SetupReflectPluginMethods() {
-	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo()
+func SetupReflectPlugin() {
+	serviceInfo().Methods["ReflectService"] = PluginReflect.NewMethodInfo("ReflectService")
 }
 
 func GetReflectServiceRespPayload() *idl.ReflectServiceRespPayload {
-	return PluginReflect.NewRespPayload()
+	return PluginReflect.NewReflectServiceRespPayload()
 }
 
 func GetIDLRawBytes() []byte {
@@ -22,7 +22,7 @@ func GetIDLRawBytes() []byte {
 }
 
 var PluginReflect = &idl.PluginImpl{
-	Version:          "20230107131653Z",
+	Version:          "20230120022529Z",
 	IsCombineService: false,
 
 	GetIDLBytes: func() []byte { return idlRawBytes },
